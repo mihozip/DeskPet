@@ -9,7 +9,7 @@
 
 DeskPet is a macOS desktop work agent built with Swift, SwiftUI and AppKit. It connects quick capture, optional Gemini interpretation, human confirmation, Calendar / Reminders / Google Apps Script task actions, ambient monitoring, duplicate detection and a local work-event diary.
 
-Current version: **0.9.4.0 — Unified Administrative Title UI (pre-1.0 / RC)**.
+Current version: **0.9.5.0 — Visible Update Progress (pre-1.0 / RC)**.
 
 ## Quick start
 
@@ -21,7 +21,7 @@ cd DeskPet
 
 Requirements: macOS 13+, Swift 5.9+ / Xcode or Apple Command Line Tools.
 
-Installed builds can check and install updates from **Settings → General → Software Update**. Users of older builds can bootstrap the same rollback-aware updater with the command documented in the main README. Updating preserves Application Support data, preferences and Keychain credentials.
+Installed builds can check and install updates from **Settings → General → Software Update**. The app shows the active stage and percentage while downloading, building and verifying, then closes only when it is ready to replace and relaunch itself. Users of older builds can bootstrap the same rollback-aware updater with the command documented in the main README. Updating preserves Application Support data, preferences and Keychain credentials.
 
 Gemini and Google Apps Script integrations are optional and require users to provide their own credentials. No private API key, Spreadsheet ID, GAS deployment URL or token is included in this repository.
 

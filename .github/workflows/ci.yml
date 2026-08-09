@@ -36,6 +36,9 @@ jobs:
       - name: Validate updater entrypoint
         run: ./tests/updater_cli.test.sh
 
+      - name: Validate visible update progress
+        run: ./tests/update_progress_contract.test.sh
+
       - name: Validate administrative-title UI
         run: ./tests/administrative_title_ui.test.sh
 

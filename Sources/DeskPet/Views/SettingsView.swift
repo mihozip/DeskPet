@@ -163,12 +163,31 @@ struct SettingsView: View {
                     }
                 }
 
+                if softwareUpdate.isInstalling {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ProgressView(value: softwareUpdate.installProgress, total: 1)
+                            .progressViewStyle(.linear)
+
+                        HStack {
+                            Text(softwareUpdate.installStage)
+                            Spacer()
+                            Text("\(softwareUpdate.installPercentage)%")
+                                .monospacedDigit()
+                        }
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("DeskPet 更新進度")
+                    .accessibilityValue("\(softwareUpdate.installPercentage)%：\(softwareUpdate.installStage)")
+                }
+
                 Text(softwareUpdate.statusMessage)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text("更新會從官方 GitHub repository 下載最新原始碼，以本機 Swift 工具鏈完成建置；失敗時保留或恢復原本的 App。更新紀錄位於 ~/Library/Logs/DeskPet/update.log。")
+                Text("下載與建置期間會顯示進度；到「準備替換 App」才會自動關閉並重新開啟 DeskPet。失敗時保留或恢復原本的 App。更新紀錄位於 ~/Library/Logs/DeskPet/update.log。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

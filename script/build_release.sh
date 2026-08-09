@@ -6,7 +6,7 @@ PRODUCT_NAME="DeskPet"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUNDLE_ID="${BUNDLE_ID:-tw.mihozip.deskpet}"
 VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
-BUILD_NUMBER="940"
+BUILD_NUMBER="950"
 DIST_DIR="$ROOT_DIR/dist-release"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 CONTENTS="$APP_BUNDLE/Contents"
@@ -21,7 +21,7 @@ if [[ -d "/Applications/Xcode.app/Contents/Developer" ]]; then
     export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
 fi
 
-echo "Building DeskPet $VERSION Unified Administrative Title UI (release)…"
+echo "Building DeskPet $VERSION Visible Update Progress (release)…"
 swift build -c release --product "$PRODUCT_NAME"
 BIN_DIR="$(swift build -c release --show-bin-path)"
 BINARY="$BIN_DIR/$PRODUCT_NAME"
