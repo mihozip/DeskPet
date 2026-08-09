@@ -1,4 +1,3 @@
-import AppKit
 import Combine
 import Foundation
 
@@ -24,6 +23,8 @@ final class SoftwareUpdateService: ObservableObject {
     @Published private(set) var isChecking = false
     @Published private(set) var isInstalling = false
     @Published private(set) var availableVersion: String?
+    @Published private(set) var installProgress = 0.0
+    @Published private(set) var installStage = ""
 
     let currentVersion: String
 
@@ -32,6 +33,8 @@ final class SoftwareUpdateService: ObservableObject {
     private let session: URLSession
     private var updateProcess: Process?
     private var updateLogHandle: FileHandle?
+    private var updateOutputPipe: Pipe?
+    private var updateOutputBuffer = Data()
 
     init(session: URLSession = .shared) {
         self.session = session
@@ -40,6 +43,10 @@ final class SoftwareUpdateService: ObservableObject {
 
     var canInstall: Bool {
         availableVersion != nil && !isChecking && !isInstalling
+    }
+
+    var installPercentage: Int {
+        Int((installProgress * 100).rounded())
     }
 
     func checkIfDue() {
@@ -103,33 +110,110 @@ final class SoftwareUpdateService: ObservableObject {
             try FileManager.default.createDirectory(at: logDirectory, withIntermediateDirectories: true)
             let logURL = logDirectory.appendingPathComponent("update.log")
             if !FileManager.default.fileExists(atPath: logURL.path) {
-                FileManager.default.createFile(atPath: logURL.path, contents: nil)
+                _ = FileManager.default.createFile(atPath: logURL.path, contents: nil)
             }
             let logHandle = try FileHandle(forWritingTo: logURL)
             try logHandle.seekToEnd()
+            if let header = "\n=== DeskPet update started \(Date().formatted(.iso8601)) ===\n".data(using: .utf8) {
+                try logHandle.write(contentsOf: header)
+            }
 
             let process = Process()
+            let outputPipe = Pipe()
             process.executableURL = URL(fileURLWithPath: "/bin/bash")
             process.arguments = [
                 updaterURL.path,
                 "--destination", Bundle.main.bundlePath,
-                "--wait-pid", String(ProcessInfo.processInfo.processIdentifier),
             ]
-            process.standardOutput = logHandle
-            process.standardError = logHandle
+            var environment = ProcessInfo.processInfo.environment
+            environment["DESKPET_PROGRESS_PROTOCOL"] = "1"
+            environment["DESKPET_PROGRESS_LOG"] = logURL.path
+            process.environment = environment
+            process.standardOutput = outputPipe
+            process.standardError = outputPipe
+
+            outputPipe.fileHandleForReading.readabilityHandler = { [weak self] outputHandle in
+                let data = outputHandle.availableData
+                guard !data.isEmpty else { return }
+                try? logHandle.write(contentsOf: data)
+                Task { @MainActor [weak self] in
+                    self?.consumeUpdaterOutput(data)
+                }
+            }
+            process.terminationHandler = { [weak self] finishedProcess in
+                Task { @MainActor [weak self] in
+                    self?.handleUpdaterTermination(status: finishedProcess.terminationStatus)
+                }
+            }
+
+            installProgress = 0.02
+            installStage = "正在啟動更新器"
+            isInstalling = true
+            statusMessage = "更新已開始；下載與建置期間請保持 DeskPet 開啟。"
+            updateOutputBuffer.removeAll(keepingCapacity: true)
+            updateOutputPipe = outputPipe
+            updateLogHandle = logHandle
             try process.run()
             updateProcess = process
-            updateLogHandle = logHandle
-
-            isInstalling = true
-            statusMessage = "更新程式已啟動；DeskPet 即將關閉，完成後會自動重新開啟。"
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                NSApp.terminate(nil)
-            }
         } catch {
-            isInstalling = false
+            cleanUpUpdaterHandles()
+            resetInstallProgress()
             statusMessage = "無法啟動更新：\(error.localizedDescription)"
         }
+    }
+
+    private func consumeUpdaterOutput(_ data: Data) {
+        updateOutputBuffer.append(data)
+        while let newlineIndex = updateOutputBuffer.firstIndex(of: 0x0A) {
+            let lineData = Data(updateOutputBuffer[..<newlineIndex])
+            updateOutputBuffer.removeSubrange(...newlineIndex)
+            applyProgressLine(String(decoding: lineData, as: UTF8.self))
+        }
+        if updateOutputBuffer.count > 16 * 1024 {
+            updateOutputBuffer.removeAll(keepingCapacity: true)
+        }
+    }
+
+    private func applyProgressLine(_ line: String) {
+        let parts = line.split(separator: "|", maxSplits: 2, omittingEmptySubsequences: false)
+        guard parts.count == 3,
+              parts[0] == "DESKPET_PROGRESS",
+              let percent = Double(parts[1]),
+              (0...100).contains(percent) else { return }
+        let stage = String(parts[2]).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !stage.isEmpty, stage.count <= 120 else { return }
+        installProgress = max(installProgress, percent / 100)
+        installStage = stage
+        statusMessage = "更新進度 \(installPercentage)%：\(stage)"
+    }
+
+    private func handleUpdaterTermination(status: Int32) {
+        cleanUpUpdaterHandles()
+        if status == 0 {
+            installProgress = 1
+            installStage = "更新完成"
+            isInstalling = false
+            statusMessage = "更新完成；若 DeskPet 未自動重新開啟，請手動啟動 App。"
+        } else {
+            isInstalling = false
+            installStage = "更新失敗"
+            statusMessage = "更新失敗（exit \(status)）；原版本已保留。請查看 ~/Library/Logs/DeskPet/update.log。"
+        }
+    }
+
+    private func cleanUpUpdaterHandles() {
+        updateOutputPipe?.fileHandleForReading.readabilityHandler = nil
+        try? updateLogHandle?.close()
+        updateProcess = nil
+        updateOutputPipe = nil
+        updateLogHandle = nil
+        updateOutputBuffer.removeAll(keepingCapacity: false)
+    }
+
+    private func resetInstallProgress() {
+        isInstalling = false
+        installProgress = 0
+        installStage = ""
     }
 
     private static func isValidVersion(_ value: String) -> Bool {

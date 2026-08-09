@@ -9,7 +9,7 @@
 
 DeskPet 是一隻住在 macOS 桌面的工作代理人。它把快速記事、規則或 Gemini 理解、人工確認、Calendar／Reminders／GAS 任務執行，以及每日工作日誌串成同一條可追蹤的工作流。
 
-**目前版本：0.9.4.0 — Unified Administrative Title UI（pre-1.0 / RC）**
+**目前版本：0.9.5.0 — Visible Update Progress（pre-1.0 / RC）**
 
 DeskPet 是以 Swift / SwiftUI / AppKit 開發的 macOS 桌面工具。它不是要取代既有的任務系統，而是提供一個隨手可用的桌面入口，把零散資訊轉成可追蹤的工作。
 
@@ -73,7 +73,7 @@ cd DeskPet
 
 ## 軟體更新
 
-新版本安裝後可在「設定 → 一般 → 軟體更新」檢查並安裝更新。更新器會從官方 GitHub repository 下載最新原始碼、以本機 Swift 工具鏈建置，在新 App 驗證成功後才替換舊 App；失敗時會保留或恢復原版本。
+新版本安裝後可在「設定 → 一般 → 軟體更新」檢查並安裝更新。更新畫面會顯示目前階段與百分比；下載、建置與驗證期間 App 會保持開啟，到「準備替換 App」才自動關閉並重新啟動。新 App 驗證成功後才會替換舊 App；失敗時會保留或恢復原版本。
 
 已安裝 0.9.1.x 等舊版、App 內尚無更新按鈕時，可在 Terminal 執行：
 

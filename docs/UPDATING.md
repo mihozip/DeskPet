@@ -6,11 +6,12 @@ DeskPet 0.9.2.0 and later can check for updates from **Settings → General → 
 
 1. Reads the latest four-part version from the repository `VERSION` file with a 12-second app-side timeout.
 2. Starts the updater bundled inside `DeskPet.app` only after validating its expected script marker and size.
-3. Downloads the latest source archive from `mihozip/DeskPet` with bounded timeouts and retries.
-4. Builds a complete replacement app with the local Apple Swift toolchain.
+3. Keeps DeskPet open and reports a visible stage and percentage while downloading the latest source archive with bounded timeouts and retries.
+4. Builds a complete replacement app with the local Apple Swift toolchain while continuing to report progress.
 5. Verifies the replacement with `codesign` before touching the installed app.
-6. Moves the current app to a temporary backup, installs and verifies the new app, and restores the backup if replacement fails.
-7. Relaunches DeskPet after success.
+6. At **Preparing to replace App** (88%), redirects remaining output to the persistent log, closes DeskPet, and starts the replacement transaction.
+7. Moves the current app to a temporary backup, installs and verifies the new app, and restores the backup if replacement fails.
+8. Relaunches DeskPet after success.
 
 Inbox, Work Diary, preferences and Keychain credentials live outside the app bundle and are not removed during an update.
 
@@ -41,4 +42,4 @@ The updater log is stored at:
 ~/Library/Logs/DeskPet/update.log
 ```
 
-If an update cannot be completed, launch the existing app again and inspect this log. The replacement step is designed to restore the previous app automatically when a backup exists.
+If an update fails before replacement, the running app displays the failure and log location. If it fails after replacement begins, launch the restored app again and inspect this log. The replacement step is designed to restore the previous app automatically when a backup exists.

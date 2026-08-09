@@ -48,7 +48,7 @@ Gateway attachment validates the Dashboard's task, log, settings and option shee
 
 ### Software update
 
-`SoftwareUpdateService` owns the app-side version check and launches a bundled updater only after validating its marker and size. The updater is an outer delivery adapter: it downloads source with bounded retries, builds and verifies a complete replacement, then performs a backup → replace → verify transaction with rollback on failure. User data remains outside the app bundle.
+`SoftwareUpdateService` owns the app-side version check and launches a bundled updater only after validating its marker and size. A bounded line protocol reports validated, monotonic stage percentages to SwiftUI while the app remains open. The updater is an outer delivery adapter: it downloads source with bounded retries, builds and verifies a complete replacement, redirects output to the persistent log, then performs a backup → replace → verify transaction with rollback on failure. User data remains outside the app bundle.
 
 The administrative-title override is local preference policy. `GASTaskConnector` maps it to the `owner` field only when DeskPet creates a task; it does not mutate Dashboard profile configuration.
 

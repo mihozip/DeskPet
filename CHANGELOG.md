@@ -2,6 +2,19 @@
 
 All notable changes to DeskPet are documented here. The project is pre-1.0, so interfaces and stored-data formats may still evolve.
 
+## [0.9.5.0] - 2026-08
+
+### Added
+- Added a determinate software-update progress bar with the current stage and percentage in General settings.
+- Added a bounded, validated progress protocol between the bundled updater and the running app.
+
+### Changed
+- Kept DeskPet open while downloading, building and verifying an update, and close it only immediately before app replacement.
+- Redirected updater output to the persistent update log before replacing the running app so post-close installation is not interrupted by a broken output pipe.
+
+### Safety
+- Update failures before replacement remain visible in the app and point to `~/Library/Logs/DeskPet/update.log`; the existing rollback behavior remains in place after replacement begins.
+
 ## [0.9.4.0] - 2026-08
 
 ### Changed
