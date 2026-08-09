@@ -39,6 +39,8 @@ final class SettingsViewModel: ObservableObject {
     @Published private(set) var gasConnectionSucceeded: Bool? = nil
     @Published var ambientEnabled: Bool
     @Published var ambientIntervalMinutes: Int
+    @Published var administrativeTitleDraft: String
+    @Published private(set) var administrativeTitleStatus: String
 
     let hotKeyService: GlobalHotKeyService
     let aiConfiguration: AIConfigurationStore
@@ -48,6 +50,7 @@ final class SettingsViewModel: ObservableObject {
     let ambientMonitor: GASTaskAmbientMonitor
     let dailyPreferences: DailyUsePreferencesStore
     let launchAtLogin: LaunchAtLoginService
+    let softwareUpdate: SoftwareUpdateService
     let diagnostics: SelfDiagnosticsService
 
     init(
@@ -59,6 +62,7 @@ final class SettingsViewModel: ObservableObject {
         ambientMonitor: GASTaskAmbientMonitor,
         dailyPreferences: DailyUsePreferencesStore,
         launchAtLogin: LaunchAtLoginService,
+        softwareUpdate: SoftwareUpdateService,
         diagnostics: SelfDiagnosticsService
     ) {
         self.hotKeyService = hotKeyService
@@ -69,6 +73,7 @@ final class SettingsViewModel: ObservableObject {
         self.ambientMonitor = ambientMonitor
         self.dailyPreferences = dailyPreferences
         self.launchAtLogin = launchAtLogin
+        self.softwareUpdate = softwareUpdate
         self.diagnostics = diagnostics
 
         selectedShortcutID = hotKeyService.selectedPresetID
@@ -80,12 +85,21 @@ final class SettingsViewModel: ObservableObject {
         gasStatusMessage = gasConfiguration.statusMessage
         ambientEnabled = gasConfiguration.ambientEnabled
         ambientIntervalMinutes = gasConfiguration.ambientIntervalMinutes
+        administrativeTitleDraft = gasConfiguration.administrativeTitle
+        administrativeTitleStatus = gasConfiguration.administrativeTitleOverride.isEmpty
+            ? "目前跟隨 Dashboard 行政職稱"
+            : "目前使用 DeskPet 本機覆寫"
     }
 
     var shortcutPresets: [GlobalHotKeyService.ShortcutPreset] { hotKeyService.availablePresets }
     var aiModelOptions: [AIConfigurationStore.ModelOption] { AIConfigurationStore.modelOptions }
     var hasAPIKey: Bool { aiConfiguration.hasAPIKey }
     var hasGASToken: Bool { gasConfiguration.hasAPIToken }
+    var gasIntegrationSummary: String? {
+        guard let metadata = gasConfiguration.integrationMetadata else { return nil }
+        let name = metadata.displayName.isEmpty ? metadata.systemName : metadata.displayName
+        return "已嫁接：\(name)｜\(metadata.categories.count) 個任務類型"
+    }
 
     func showSection(_ section: Section) {
         selectedSection = section
@@ -100,6 +114,14 @@ final class SettingsViewModel: ObservableObject {
 
     func setLaunchAtLogin(_ enabled: Bool) {
         launchAtLogin.setEnabled(enabled)
+    }
+
+    func checkForUpdates() {
+        Task { await softwareUpdate.checkForUpdates() }
+    }
+
+    func installAvailableUpdate() {
+        softwareUpdate.installAvailableUpdate()
     }
 
     func applyAIEnabled() {
@@ -176,12 +198,30 @@ final class SettingsViewModel: ObservableObject {
         ambientMonitor.reconfigure()
     }
 
+    func saveAdministrativeTitle() {
+        do {
+            try gasConfiguration.saveAdministrativeTitle(administrativeTitleDraft)
+            administrativeTitleDraft = gasConfiguration.administrativeTitle
+            administrativeTitleStatus = gasConfiguration.administrativeTitleOverride.isEmpty
+                ? "已恢復跟隨 Dashboard 行政職稱"
+                : "行政職稱已儲存；DeskPet 新建任務會使用此負責人名稱"
+        } catch {
+            administrativeTitleStatus = error.localizedDescription
+        }
+    }
+
+    func resetAdministrativeTitle() {
+        gasConfiguration.clearAdministrativeTitleOverride()
+        administrativeTitleDraft = gasConfiguration.administrativeTitle
+        administrativeTitleStatus = "已恢復跟隨 Dashboard 行政職稱"
+    }
+
     func saveGASEndpoint() {
         gasConfiguration.endpoint = gasEndpoint
         gasEndpoint = gasConfiguration.endpoint
         gasStatusMessage = gasConfiguration.endpointURL == nil
             ? "Web App 網址格式無效；必須是 https://"
-            : "總務工作台 Web App 網址已儲存"
+            : "校務任務系統 Gateway 網址已儲存"
         ambientMonitor.reconfigure()
     }
 
@@ -215,12 +255,16 @@ final class SettingsViewModel: ObservableObject {
         gasConfiguration.isEnabled = gasEnabled
         isTestingGAS = true
         gasConnectionSucceeded = nil
-        gasStatusMessage = "正在測試總務工作台…"
+        gasStatusMessage = "正在測試校務任務系統…"
         Task {
             defer { isTestingGAS = false }
             do {
                 gasStatusMessage = try await gasConnector.testConnection()
                 gasConnectionSucceeded = true
+                if gasConfiguration.administrativeTitleOverride.isEmpty {
+                    administrativeTitleDraft = gasConfiguration.administrativeTitle
+                    administrativeTitleStatus = "目前跟隨 Dashboard 行政職稱"
+                }
                 ambientMonitor.reconfigure()
             } catch {
                 gasConnectionSucceeded = false

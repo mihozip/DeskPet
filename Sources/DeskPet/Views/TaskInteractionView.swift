@@ -134,7 +134,7 @@ struct TaskInteractionView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Spacer()
-            Button(model.isSubmitting ? "寫入中…" : "確認寫入總務工作台") {
+            Button(model.isSubmitting ? "寫入中…" : "確認寫入校務任務系統") {
                 Task { await model.submit() }
             }
             .buttonStyle(.borderedProminent)

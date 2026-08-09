@@ -3,10 +3,10 @@ set -euo pipefail
 
 APP_NAME="DeskPet"
 PRODUCT_NAME="DeskPet"
-BUNDLE_ID="${BUNDLE_ID:-tw.mihozip.deskpet}"
-VERSION="0.9.1.2"
-BUILD_NUMBER="912"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BUNDLE_ID="${BUNDLE_ID:-tw.mihozip.deskpet}"
+VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
+BUILD_NUMBER="920"
 DIST_DIR="$ROOT_DIR/dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 CONTENTS="$APP_BUNDLE/Contents"
@@ -41,11 +41,16 @@ for asset in "${PET_ASSETS[@]}"; do
     dst="$RESOURCES_DIR/$asset"
     if [[ -s "$src" ]]; then
         cp "$src" "$dst"
+        /usr/bin/xattr -c "$dst" 2>/dev/null || true
     else
         echo "WARN: optional pet asset missing: $asset (fallback UI will be used)"
         continue
     fi
 done
+
+cp "$ROOT_DIR/VERSION" "$RESOURCES_DIR/VERSION"
+cp "$ROOT_DIR/script/install_or_update.sh" "$RESOURCES_DIR/DeskPetUpdater.sh"
+chmod +x "$RESOURCES_DIR/DeskPetUpdater.sh"
 
 cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -75,6 +80,7 @@ cat > "$CONTENTS/Info.plist" <<PLIST
 PLIST
 
 /usr/bin/plutil -lint "$CONTENTS/Info.plist" >/dev/null
+/usr/bin/xattr -cr "$APP_BUNDLE" 2>/dev/null || true
 /usr/bin/codesign --force --deep --sign - "$APP_BUNDLE" >/dev/null 2>&1 || true
 
 echo "DeskPet pet assets:"

@@ -18,9 +18,6 @@ DerivedData/
 secrets.*
 private/
 
-# Prototype artwork is intentionally not part of the public repository.
-Sources/DeskPet/Resources/pet_*.png
-
 # Editor / IDE
 .vscode/
 .idea/

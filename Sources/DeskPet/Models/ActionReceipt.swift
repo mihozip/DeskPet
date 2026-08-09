@@ -12,7 +12,7 @@ enum DeskPetActionKind: String, Codable, Equatable, CaseIterable {
         case .reminder:
             return "Reminders"
         case .gasTask:
-            return "總務工作台"
+            return "校務任務系統"
         }
     }
 

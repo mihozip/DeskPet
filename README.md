@@ -9,7 +9,7 @@
 
 DeskPet 是一隻住在 macOS 桌面的工作代理人。它把快速記事、規則或 Gemini 理解、人工確認、Calendar／Reminders／GAS 任務執行，以及每日工作日誌串成同一條可追蹤的工作流。
 
-**目前版本：0.9.1.2 — Duplicate Guard（pre-1.0 / RC）**
+**目前版本：0.9.2.0 — School Admin Update（pre-1.0 / RC）**
 
 DeskPet 是以 Swift / SwiftUI / AppKit 開發的 macOS 桌面工具。它不是要取代既有的任務系統，而是提供一個隨手可用的桌面入口，把零散資訊轉成可追蹤的工作。
 
@@ -71,6 +71,21 @@ cd DeskPet
 ~/Applications/DeskPet.app
 ```
 
+## 軟體更新
+
+新版本安裝後可在「設定 → 一般 → 軟體更新」檢查並安裝更新。更新器會從官方 GitHub repository 下載最新原始碼、以本機 Swift 工具鏈建置，在新 App 驗證成功後才替換舊 App；失敗時會保留或恢復原版本。
+
+已安裝 0.9.1.x 等舊版、App 內尚無更新按鈕時，可在 Terminal 執行：
+
+```bash
+curl --fail --location --show-error \
+  https://raw.githubusercontent.com/mihozip/DeskPet/main/script/install_or_update.sh \
+  --output /tmp/DeskPetUpdater.sh
+bash /tmp/DeskPetUpdater.sh
+```
+
+更新不會刪除 `Application Support/DeskPet`、`UserDefaults` 或 Keychain 憑證。需要 Xcode 或 Apple Command Line Tools；執行紀錄位於 `~/Library/Logs/DeskPet/update.log`。
+
 ### Bundle ID
 
 預設保留目前專案識別碼以維持既有安裝相容性；fork 或自行發佈時可覆寫：
@@ -93,12 +108,16 @@ DeskPet 不內建 API Key。使用者需在「設定 → AI」自行輸入，秘
 
 完整安裝流程見：[`docs/GAS_GATEWAY_SETUP.md`](docs/GAS_GATEWAY_SETUP.md)
 
-如果要把 DeskPet 接到你自己的既有 Google Spreadsheet／Apps Script 專案，請看：
+DeskPet Gateway 已依 [`mihozip/school-admin-daily-dashboard`](https://github.com/mihozip/school-admin-daily-dashboard) 的資料契約嫁接。請看：
 
-- [`docs/GAS_PROJECT_INTEGRATION.md`](docs/GAS_PROJECT_INTEGRATION.md)：哪些部分直接沿用、哪些欄位可依你的專案調整
+- [`docs/GAS_PROJECT_INTEGRATION.md`](docs/GAS_PROJECT_INTEGRATION.md)：獨立 Gateway 架構、安裝步驟、處室切換與安全邊界
 - [`GAS/DeskPet_GAS_API_Gateway_v3.js`](GAS/DeskPet_GAS_API_Gateway_v3.js)：可獨立部署的 Gateway 程式
 
-建議把 Gateway 建成獨立 Apps Script 專案，再透過 `DESKPET_SPREADSHEET_ID` 連到既有試算表。這樣不必把公開 HTTP API 混進原本的管理後台，也較容易獨立輪替 Token 與部署版本。
+Gateway 必須建成獨立 Apps Script 專案，再透過 `DESKPET_SPREADSHEET_ID` 附掛到已安裝完成的 Dashboard 試算表。它會動態讀取 Dashboard 的學校、處室、職務與選項清單，不會自行建立或覆寫工作表。
+
+### 行政職稱
+
+連線 Dashboard 後，DeskPet 預設使用該 profile 的 `ROLE_NAME`。使用者也可以在「設定 → 整合 → 行政職稱」設定本機覆寫；覆寫值會套用到 DeskPet 新建任務的負責人名稱，但不會改寫 Dashboard 的 `OFFICE_KEY`／`ROLE_KEY`。隨時可按「跟隨 Dashboard」恢復同步。
 
 核心安全邊界：
 
@@ -127,7 +146,7 @@ Sources/DeskPet/
 ├── Services/   Gemini / GAS / EventKit / Speech / Keychain
 ├── Views/      SwiftUI views
 ├── Window/     AppKit window / panel controllers
-└── Resources/  Optional pet artwork
+└── Resources/  Default pet artwork
 
 GAS/            Google Apps Script Gateway
 script/         Build / install / public-repo checks
@@ -147,16 +166,14 @@ DeskPet 對外部系統採用這條邊界：
 
 ## 公開素材
 
-原型階段使用的白貓 PNG **沒有在公開原始碼包中散布**，因為目前沒有可驗證的再散布授權。程式碼的 MIT License 不會自動涵蓋外部圖片素材。
+公開版包含四張預設白貓 PNG，對應待機、聆聽、成功與睡眠狀態：
 
-如果你有自己的合法素材，加入：
+- `pet_idle.png`
+- `pet_listening.png`
+- `pet_success.png`
+- `pet_sleep.png`
 
-```text
-Sources/DeskPet/Resources/pet_idle.png
-Sources/DeskPet/Resources/pet_listening.png
-Sources/DeskPet/Resources/pet_success.png
-Sources/DeskPet/Resources/pet_sleep.png
-```
+這些檔案是專案維護者提供並核准公開散布的 AI 輔助重繪素材，預設隨專案一併採 MIT License 發布。素材來源與權利說明見 [`ASSETS.md`](ASSETS.md)。
 
 ## 安全與回報
 
@@ -170,6 +187,6 @@ Sources/DeskPet/Resources/pet_sleep.png
 
 ## License
 
-DeskPet **原始碼**以 [MIT License](LICENSE) 釋出。
+DeskPet 原始碼與專案提供的預設白貓素材以 [MIT License](LICENSE) 釋出。
 
 第三方或使用者自行加入的圖片、字型、商標與其他素材，仍依其各自授權條款處理。

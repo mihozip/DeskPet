@@ -3,10 +3,10 @@ set -euo pipefail
 
 APP_NAME="DeskPet"
 PRODUCT_NAME="DeskPet"
-BUNDLE_ID="${BUNDLE_ID:-tw.mihozip.deskpet}"
-VERSION="0.9.1.2"
-BUILD_NUMBER="912"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BUNDLE_ID="${BUNDLE_ID:-tw.mihozip.deskpet}"
+VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
+BUILD_NUMBER="920"
 DIST_DIR="$ROOT_DIR/dist-release"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 CONTENTS="$APP_BUNDLE/Contents"
@@ -21,7 +21,7 @@ if [[ -d "/Applications/Xcode.app/Contents/Developer" ]]; then
     export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
 fi
 
-echo "Building DeskPet $VERSION Duplicate Guard (release)…"
+echo "Building DeskPet $VERSION School Admin Update (release)…"
 swift build -c release --product "$PRODUCT_NAME"
 BIN_DIR="$(swift build -c release --show-bin-path)"
 BINARY="$BIN_DIR/$PRODUCT_NAME"
@@ -38,11 +38,21 @@ for asset in "${PET_ASSETS[@]}"; do
     dst="$RESOURCES_DIR/$asset"
     if [[ -s "$src" ]]; then
         cp "$src" "$dst"
+        /usr/bin/xattr -c "$dst" 2>/dev/null || true
     else
         echo "WARN: optional pet asset missing: $asset (fallback UI will be used)"
         continue
     fi
 done
+
+cp "$ROOT_DIR/VERSION" "$RESOURCES_DIR/VERSION"
+cp "$ROOT_DIR/script/install_or_update.sh" "$RESOURCES_DIR/DeskPetUpdater.sh"
+chmod +x "$RESOURCES_DIR/DeskPetUpdater.sh"
+
+if [[ ! -x "$RESOURCES_DIR/DeskPetUpdater.sh" || "$(tr -d '[:space:]' < "$RESOURCES_DIR/VERSION")" != "$VERSION" ]]; then
+    echo "ERROR: updater resources failed to package" >&2
+    exit 1
+fi
 
 cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -72,15 +82,30 @@ cat > "$CONTENTS/Info.plist" <<PLIST
 PLIST
 
 /usr/bin/plutil -lint "$CONTENTS/Info.plist" >/dev/null
-
 if [[ "$CODESIGN_IDENTITY" == "-" ]]; then
     echo "Signing: ad-hoc (local/RC testing only)"
-    /usr/bin/codesign --force --deep --sign - "$APP_BUNDLE"
+    CODESIGN_ARGS=(--force --deep --sign -)
 else
     echo "Signing: $CODESIGN_IDENTITY"
-    /usr/bin/codesign --force --deep --options runtime --timestamp --sign "$CODESIGN_IDENTITY" "$APP_BUNDLE"
+    CODESIGN_ARGS=(--force --deep --options runtime --timestamp --sign "$CODESIGN_IDENTITY")
 fi
 
+SIGN_SUCCEEDED=0
+for attempt in 1 2 3; do
+    /usr/bin/xattr -cr "$APP_BUNDLE" 2>/dev/null || true
+    if /usr/bin/codesign "${CODESIGN_ARGS[@]}" "$APP_BUNDLE"; then
+        SIGN_SUCCEEDED=1
+        break
+    fi
+    echo "WARN: codesign attempt $attempt failed; retrying after bundle metadata cleanup" >&2
+    /bin/sleep 1
+done
+if [[ "$SIGN_SUCCEEDED" -ne 1 ]]; then
+    echo "ERROR: codesign failed after 3 attempts" >&2
+    exit 1
+fi
+
+/usr/bin/xattr -cr "$APP_BUNDLE" 2>/dev/null || true
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
 
 for asset in "${PET_ASSETS[@]}"; do
@@ -90,7 +115,7 @@ for asset in "${PET_ASSETS[@]}"; do
     fi
 done
 
-/usr/bin/ditto -c -k --sequesterRsrc --keepParent "$APP_BUNDLE" "$ZIP_PATH"
+COPYFILE_DISABLE=1 /usr/bin/ditto -c -k --keepParent "$APP_BUNDLE" "$ZIP_PATH"
 
 echo
 printf 'Release App: %s\n' "$APP_BUNDLE"

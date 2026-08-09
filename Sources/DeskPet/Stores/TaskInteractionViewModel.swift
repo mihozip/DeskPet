@@ -61,7 +61,7 @@ final class TaskInteractionViewModel: ObservableObject {
         case .postpone:
             if note.isEmpty { note = "由 DeskPet 調整截止時間" }
         }
-        statusMessage = "請確認下方變更預覽；按下確認後才會寫入總務工作台。"
+        statusMessage = "請確認下方變更預覽；按下確認後才會寫入校務任務系統。"
     }
 
     var preview: GASTaskMutationPreview? {
@@ -120,7 +120,7 @@ final class TaskInteractionViewModel: ObservableObject {
         guard !isSubmitting else { return }
         isSubmitting = true
         didSucceed = false
-        statusMessage = "正在寫入總務工作台…"
+        statusMessage = "正在寫入校務任務系統…"
         defer { isSubmitting = false }
 
         do {

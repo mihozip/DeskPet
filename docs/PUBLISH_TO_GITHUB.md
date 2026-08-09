@@ -18,7 +18,7 @@ Using GitHub CLI:
 git init
 git branch -M main
 git add .
-git commit -m "chore: prepare DeskPet 0.9.1.2 for open source"
+git commit -m "chore: prepare DeskPet 0.9.2.0 for open source"
 gh repo create DeskPet --public --source=. --remote=origin --push
 ```
 
@@ -27,8 +27,8 @@ Or create an empty public repository in GitHub's web UI, then add the remote and
 ## 3. Tag the source release
 
 ```bash
-git tag -a v0.9.1.2 -m "DeskPet 0.9.1.2 — Duplicate Guard"
-git push origin v0.9.1.2
+git tag -a v0.9.2.0 -m "DeskPet 0.9.2.0 — School Admin Update"
+git push origin v0.9.2.0
 ```
 
 For the first public release, a **source-only prerelease** is reasonable. Do not attach an ad-hoc signed `.app` as if it were a normal distributable build.

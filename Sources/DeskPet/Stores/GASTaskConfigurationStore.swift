@@ -8,6 +8,8 @@ final class GASTaskConfigurationStore: ObservableObject {
         static let endpoint = "DeskPet.gas.endpoint.v1"
         static let ambientEnabled = "DeskPet.gas.ambient.enabled.v1"
         static let ambientIntervalMinutes = "DeskPet.gas.ambient.intervalMinutes.v1"
+        static let integrationMetadata = "DeskPet.gas.integrationMetadata.v1"
+        static let administrativeTitleOverride = "DeskPet.gas.administrativeTitleOverride.v1"
     }
 
     private enum KeychainKey {
@@ -17,7 +19,9 @@ final class GASTaskConfigurationStore: ObservableObject {
     static let defaultEndpoint = ""
 
     @Published private(set) var hasAPIToken = false
-    @Published private(set) var statusMessage = "尚未設定總務工作台 API Token"
+    @Published private(set) var statusMessage = "尚未設定校務任務系統 API Token"
+    @Published private(set) var integrationMetadata: GASTaskIntegrationMetadata?
+    @Published private(set) var administrativeTitleOverride: String
 
     var isEnabled: Bool {
         get { UserDefaults.standard.bool(forKey: DefaultsKey.enabled) }
@@ -34,7 +38,11 @@ final class GASTaskConfigurationStore: ObservableObject {
             return value?.isEmpty == false ? value! : Self.defaultEndpoint
         }
         set {
-            UserDefaults.standard.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines), forKey: DefaultsKey.endpoint)
+            let normalized = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            if normalized != endpoint {
+                clearIntegrationMetadata()
+            }
+            UserDefaults.standard.set(normalized, forKey: DefaultsKey.endpoint)
             objectWillChange.send()
         }
     }
@@ -47,6 +55,24 @@ final class GASTaskConfigurationStore: ObservableObject {
 
     var canUseConnector: Bool {
         isEnabled && hasAPIToken && endpointURL != nil
+    }
+
+    var categories: [String] {
+        nonempty(integrationMetadata?.categories) ?? GASTaskTaxonomy.categories
+    }
+
+    var priorities: [String] {
+        nonempty(integrationMetadata?.priorities) ?? GASTaskTaxonomy.priorities
+    }
+
+    var defaultCategory: String {
+        categories.contains("其他") ? "其他" : (categories.first ?? "其他")
+    }
+
+    var administrativeTitle: String {
+        administrativeTitleOverride.isEmpty
+            ? (integrationMetadata?.roleName ?? "")
+            : administrativeTitleOverride
     }
 
     var ambientEnabled: Bool {
@@ -75,7 +101,43 @@ final class GASTaskConfigurationStore: ObservableObject {
     private let keychain = KeychainService(service: Bundle.main.bundleIdentifier ?? "DeskPet")
 
     init() {
+        administrativeTitleOverride = UserDefaults.standard
+            .string(forKey: DefaultsKey.administrativeTitleOverride) ?? ""
+        if let data = UserDefaults.standard.data(forKey: DefaultsKey.integrationMetadata) {
+            integrationMetadata = try? JSONDecoder().decode(GASTaskIntegrationMetadata.self, from: data)
+        }
         refreshTokenStatus()
+    }
+
+    func applyIntegrationMetadata(_ metadata: GASTaskIntegrationMetadata) {
+        integrationMetadata = metadata
+        if let data = try? JSONEncoder().encode(metadata) {
+            UserDefaults.standard.set(data, forKey: DefaultsKey.integrationMetadata)
+        }
+    }
+
+    func clearIntegrationMetadata() {
+        integrationMetadata = nil
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.integrationMetadata)
+    }
+
+    func saveAdministrativeTitle(_ rawValue: String) throws {
+        let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard value.count <= 40,
+              value.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) else {
+            throw ConfigurationError.invalidAdministrativeTitle
+        }
+        administrativeTitleOverride = value
+        if value.isEmpty {
+            UserDefaults.standard.removeObject(forKey: DefaultsKey.administrativeTitleOverride)
+        } else {
+            UserDefaults.standard.set(value, forKey: DefaultsKey.administrativeTitleOverride)
+        }
+    }
+
+    func clearAdministrativeTitleOverride() {
+        administrativeTitleOverride = ""
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.administrativeTitleOverride)
     }
 
     func apiToken() throws -> String? {
@@ -89,24 +151,37 @@ final class GASTaskConfigurationStore: ObservableObject {
             return
         }
         try keychain.write(value, account: KeychainKey.apiToken)
-        refreshTokenStatus(successMessage: "總務工作台 API Token 已安全儲存在 macOS Keychain")
+        refreshTokenStatus(successMessage: "校務任務系統 API Token 已安全儲存在 macOS Keychain")
     }
 
     func clearAPIToken() throws {
         try keychain.delete(account: KeychainKey.apiToken)
         hasAPIToken = false
-        statusMessage = "尚未設定總務工作台 API Token"
+        statusMessage = "尚未設定校務任務系統 API Token"
     }
 
     func refreshTokenStatus(successMessage: String? = nil) {
         do {
             hasAPIToken = try apiToken()?.isEmpty == false
             statusMessage = hasAPIToken
-                ? (successMessage ?? "總務工作台 API Token 已設定")
-                : "尚未設定總務工作台 API Token"
+                ? (successMessage ?? "校務任務系統 API Token 已設定")
+                : "尚未設定校務任務系統 API Token"
         } catch {
             hasAPIToken = false
             statusMessage = error.localizedDescription
+        }
+    }
+
+    private func nonempty(_ values: [String]?) -> [String]? {
+        guard let values, !values.isEmpty else { return nil }
+        return values
+    }
+
+    private enum ConfigurationError: LocalizedError {
+        case invalidAdministrativeTitle
+
+        var errorDescription: String? {
+            "行政職稱不可超過 40 個字，也不可包含控制字元。"
         }
     }
 }

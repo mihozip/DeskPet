@@ -167,7 +167,7 @@ struct SmartReviewView: View {
                 EmptyView()
             case .task:
                 HStack(spacing: 10) {
-                    Button(model.hasReceipt(.gasTask) ? "已加入總務工作台" : "加入總務工作台") {
+                    Button(model.hasReceipt(.gasTask) ? "已加入校務任務系統" : "加入校務任務系統") {
                         Task { await model.createGASTask() }
                     }
                     .buttonStyle(.borderedProminent)
@@ -180,7 +180,7 @@ struct SmartReviewView: View {
                 }
 
                 if !model.canUseGASConnector && !model.hasReceipt(.gasTask) {
-                    Text("總務工作台尚未啟用或缺少 API Token；可到設定完成串接。")
+                    Text("校務任務系統尚未啟用或缺少 API Token；可到設定完成串接。")
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }

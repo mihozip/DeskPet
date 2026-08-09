@@ -7,6 +7,7 @@ struct SettingsView: View {
     @ObservedObject private var ambientMonitor: GASTaskAmbientMonitor
     @ObservedObject private var preferences: DailyUsePreferencesStore
     @ObservedObject private var launchAtLogin: LaunchAtLoginService
+    @ObservedObject private var softwareUpdate: SoftwareUpdateService
     @ObservedObject private var diagnostics: SelfDiagnosticsService
 
     init(model: SettingsViewModel) {
@@ -16,6 +17,7 @@ struct SettingsView: View {
         ambientMonitor = model.ambientMonitor
         preferences = model.dailyPreferences
         launchAtLogin = model.launchAtLogin
+        softwareUpdate = model.softwareUpdate
         diagnostics = model.diagnostics
     }
 
@@ -52,9 +54,9 @@ struct SettingsView: View {
             Image(systemName: "cat.fill")
                 .font(.system(size: 24))
             VStack(alignment: .leading, spacing: 3) {
-                Text("DeskPet 0.9.1.1")
+                Text("DeskPet \(softwareUpdate.currentVersion)")
                     .font(.title2.bold())
-                Text("Daily Use Edition — 功能凍結，專注日常穩定性。")
+                Text("School Admin Edition — 可更新、可嫁接、可自訂行政職稱。")
                     .foregroundStyle(.secondary)
             }
             Spacer()
@@ -116,6 +118,36 @@ struct SettingsView: View {
                 }
 
                 Text("「安靜」會降低移動幅度與畫面更新頻率，適合整天開著；「活潑」保留完整動畫效果。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            settingsCard("軟體更新", systemImage: "arrow.triangle.2.circlepath") {
+                HStack {
+                    Text("目前版本")
+                    Text(softwareUpdate.currentVersion)
+                        .font(.callout.monospacedDigit().weight(.medium))
+                    Spacer()
+                    Button(softwareUpdate.isChecking ? "檢查中…" : "檢查更新") {
+                        model.checkForUpdates()
+                    }
+                    .disabled(softwareUpdate.isChecking || softwareUpdate.isInstalling)
+
+                    if softwareUpdate.availableVersion != nil {
+                        Button(softwareUpdate.isInstalling ? "更新中…" : "安裝更新") {
+                            model.installAvailableUpdate()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!softwareUpdate.canInstall)
+                    }
+                }
+
+                Text(softwareUpdate.statusMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("更新會從官方 GitHub repository 下載最新原始碼，以本機 Swift 工具鏈完成建置；失敗時保留或恢復原本的 App。更新紀錄位於 ~/Library/Logs/DeskPet/update.log。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -216,9 +248,9 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            settingsCard("總務工作台（Google Apps Script）", systemImage: "briefcase.fill") {
+            settingsCard("校務任務系統（Google Apps Script）", systemImage: "briefcase.fill") {
                 Toggle(
-                    "啟用總務工作台串接",
+                    "啟用校務任務系統串接",
                     isOn: Binding(
                         get: { model.gasEnabled },
                         set: { model.gasEnabled = $0; model.applyGASEnabled() }
@@ -241,6 +273,33 @@ struct SettingsView: View {
                 }
 
                 gasStatusLine
+
+                if let summary = model.gasIntegrationSummary {
+                    Text(summary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+
+                HStack {
+                    Text("行政職稱")
+                        .frame(width: 90, alignment: .leading)
+                    TextField("例如：教務主任、事務組長", text: $model.administrativeTitleDraft)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { model.saveAdministrativeTitle() }
+                    Button("儲存職稱") { model.saveAdministrativeTitle() }
+                    Button("跟隨 Dashboard") { model.resetAdministrativeTitle() }
+                        .disabled(model.gasConfiguration.administrativeTitleOverride.isEmpty)
+                }
+
+                Text(model.administrativeTitleStatus)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text("本機覆寫只影響 DeskPet 新建任務的負責人名稱，不修改 Dashboard 的 OFFICE_KEY／ROLE_KEY；按「跟隨 Dashboard」即可恢復同步。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 Divider()
 

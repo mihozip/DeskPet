@@ -5,7 +5,7 @@ import Foundation
 final class GASTaskAmbientMonitor: ObservableObject {
     @Published private(set) var digest: GASTaskDigest?
     @Published private(set) var announcement: String?
-    @Published private(set) var statusMessage = "尚未同步總務工作台"
+    @Published private(set) var statusMessage = "尚未同步校務任務系統"
     @Published private(set) var lastUpdated: Date?
     @Published private(set) var isRefreshing = false
 
@@ -44,7 +44,7 @@ final class GASTaskAmbientMonitor: ObservableObject {
         guard isMonitoring else {
             statusMessage = configuration.isEnabled
                 ? "主動摘要已關閉或尚未設定 API Token"
-                : "總務工作台串接未啟用"
+                : "校務任務系統串接未啟用"
             return
         }
 
@@ -65,12 +65,12 @@ final class GASTaskAmbientMonitor: ObservableObject {
     func refresh(manual: Bool) async {
         guard !isRefreshing else { return }
         guard configuration.canUseConnector else {
-            statusMessage = "總務工作台尚未完成連線設定"
+            statusMessage = "校務任務系統尚未完成連線設定"
             return
         }
 
         isRefreshing = true
-        statusMessage = "正在同步總務工作台…"
+        statusMessage = "正在同步校務任務系統…"
         defer { isRefreshing = false }
 
         do {
@@ -148,8 +148,8 @@ final class GASTaskAmbientMonitor: ObservableObject {
         }
 
         if let first = digest.tasks.first {
-            return "總務工作台：\(parts.joined(separator: "、"))。先看「\(first.name)」。"
+            return "校務任務系統：\(parts.joined(separator: "、"))。先看「\(first.name)」。"
         }
-        return "總務工作台：\(parts.joined(separator: "、"))。"
+        return "校務任務系統：\(parts.joined(separator: "、"))。"
     }
 }

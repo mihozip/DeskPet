@@ -2,6 +2,24 @@
 
 All notable changes to DeskPet are documented here. The project is pre-1.0, so interfaces and stored-data formats may still evolve.
 
+## [0.9.2.0] - 2026-08
+
+### Changed
+- Reworked the GAS Gateway as a non-destructive companion API for `mihozip/school-admin-daily-dashboard`.
+- Dashboard school, office, role, categories and priorities now flow into DeskPet as integration metadata.
+- Replaced general-affairs-only labels with profile-neutral school administration wording.
+
+### Added
+- Included the four maintainer-approved default white-cat state illustrations.
+- Added `ASSETS.md` with artwork provenance and licensing notes.
+- Added an in-app update checker and rollback-aware source updater.
+- Added a standalone update command for users of previously installed versions.
+- Added an administrative-title override for DeskPet-created task owners.
+
+### Safety
+- Gateway attachment validates the Dashboard sheet contract without creating, migrating or rewriting sheets.
+- Added a CI contract test for the Dashboard schema and dynamic option mapping.
+
 ## [0.9.1.2] - 2026-08
 
 ### Added

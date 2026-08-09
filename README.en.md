@@ -9,7 +9,7 @@
 
 DeskPet is a macOS desktop work agent built with Swift, SwiftUI and AppKit. It connects quick capture, optional Gemini interpretation, human confirmation, Calendar / Reminders / Google Apps Script task actions, ambient monitoring, duplicate detection and a local work-event diary.
 
-Current version: **0.9.1.2 — Duplicate Guard (pre-1.0 / RC)**.
+Current version: **0.9.2.0 — School Admin Update (pre-1.0 / RC)**.
 
 ## Quick start
 
@@ -21,10 +21,14 @@ cd DeskPet
 
 Requirements: macOS 13+, Swift 5.9+ / Xcode or Apple Command Line Tools.
 
+Installed builds can check and install updates from **Settings → General → Software Update**. Users of older builds can bootstrap the same rollback-aware updater with the command documented in the main README. Updating preserves Application Support data, preferences and Keychain credentials.
+
 Gemini and Google Apps Script integrations are optional and require users to provide their own credentials. No private API key, Spreadsheet ID, GAS deployment URL or token is included in this repository.
 
-Prototype pet artwork is intentionally excluded until redistribution rights are verified. The app remains buildable and shows a fallback surface without custom artwork.
+Four default AI-assisted redrawn white-cat illustrations are included for idle, listening, success and sleep states. The project maintainer has approved their public redistribution; see [ASSETS.md](ASSETS.md) for provenance and licensing notes.
 
-See the main [Traditional Chinese README](README.md), [privacy notes](PRIVACY.md), [architecture](docs/ARCHITECTURE.md), [security policy](SECURITY.md), and the guide for [connecting the Gateway to an existing GAS / Spreadsheet project](docs/GAS_PROJECT_INTEGRATION.md).
+The Gateway integrates with [`mihozip/school-admin-daily-dashboard`](https://github.com/mihozip/school-admin-daily-dashboard) through a separate token-protected Web App. See the main [Traditional Chinese README](README.md), [privacy notes](PRIVACY.md), [architecture](docs/ARCHITECTURE.md), [security policy](SECURITY.md), and the [Dashboard integration guide](docs/GAS_PROJECT_INTEGRATION.md).
 
-Source code is licensed under the [MIT License](LICENSE). Artwork and other third-party assets are separately licensed.
+The administrative title follows the Dashboard `ROLE_NAME` by default. A local override can be configured in DeskPet and is applied to the owner field of tasks created by DeskPet without changing the Dashboard profile keys.
+
+Source code and the maintainer-supplied default artwork are distributed under the [MIT License](LICENSE). Third-party or contributor-supplied assets retain their own terms.

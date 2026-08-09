@@ -20,9 +20,14 @@ Before opening a pull request:
 
 ```bash
 ./script/check_public_repo.sh
+node --check GAS/DeskPet_GAS_API_Gateway_v3.js
+node tests/gateway_contract.test.js
 bash -n script/build_and_run.sh
 bash -n script/build_release.sh
 bash -n script/install_local.sh
+bash -n script/install_or_update.sh
+./script/install_or_update.sh --help >/dev/null
+./tests/updater_cli.test.sh
 swift package dump-package >/dev/null
 ```
 
@@ -51,4 +56,4 @@ If a change touches Calendar, Reminders, microphone, Speech, Gemini, Keychain or
 
 ## Artwork
 
-Do not commit artwork unless you have the right to redistribute it under terms compatible with a public repository. Source-code licensing does not grant rights to third-party images.
+Default artwork provenance is documented in `ASSETS.md`. Do not submit replacement or additional artwork unless you have the right to redistribute it under terms compatible with this public repository. Include the source and license in the pull request.

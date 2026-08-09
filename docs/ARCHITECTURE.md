@@ -42,7 +42,15 @@ Calendar and Reminders are executed by `CalendarActionService` after explicit co
 
 ### GAS
 
-The public Web App is protected by a per-install token. The macOS client stores the deployment URL in preferences and the token in Keychain.
+The public Gateway Web App is protected by a per-install token. It is deployed separately from [`school-admin-daily-dashboard`](https://github.com/mihozip/school-admin-daily-dashboard), while both projects operate on the same installed Spreadsheet. This keeps the Dashboard's Workspace login boundary separate from DeskPet's machine API boundary.
+
+Gateway attachment validates the Dashboard's task, log, settings and option sheets without creating or migrating them. The macOS client stores the deployment URL in preferences and the token in Keychain, and caches non-secret integration metadata such as school, office, role, categories and priorities in `UserDefaults`.
+
+### Software update
+
+`SoftwareUpdateService` owns the app-side version check and launches a bundled updater only after validating its marker and size. The updater is an outer delivery adapter: it downloads source with bounded retries, builds and verifies a complete replacement, then performs a backup → replace → verify transaction with rollback on failure. User data remains outside the app bundle.
+
+The administrative-title override is local preference policy. `GASTaskConnector` maps it to the `owner` field only when DeskPet creates a task; it does not mutate Dashboard profile configuration.
 
 ## Idempotency and duplicates
 

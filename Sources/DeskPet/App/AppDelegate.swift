@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let gasConfiguration = GASTaskConfigurationStore()
     private let dailyPreferences = DailyUsePreferencesStore()
     private let launchAtLogin = LaunchAtLoginService()
+    private let softwareUpdate = SoftwareUpdateService()
     private lazy var gasConnector = GASTaskConnector(configuration: gasConfiguration)
     private lazy var ambientMonitor = GASTaskAmbientMonitor(configuration: gasConfiguration, connector: gasConnector)
     private var panelController: PetPanelController?
@@ -122,6 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ambientMonitor: ambientMonitor,
             dailyPreferences: dailyPreferences,
             launchAtLogin: launchAtLogin,
+            softwareUpdate: softwareUpdate,
             diagnostics: diagnostics
         )
         settingsWindowController = settingsController
@@ -142,6 +144,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.panelController = panelController
         panelController.show()
         ambientMonitor.start()
+        softwareUpdate.checkIfDue()
 
         let registered = hotKeyService.register { [weak panelController] in panelController?.showCapture() }
         if !registered {

@@ -1,5 +1,25 @@
 import Foundation
 
+struct GASTaskIntegrationMetadata: Codable, Equatable {
+    let schema: String
+    let systemName: String
+    let schoolName: String
+    let officeKey: String
+    let officeName: String
+    let roleKey: String
+    let roleName: String
+    let categories: [String]
+    let statuses: [String]
+    let priorities: [String]
+    let boardDisplayOptions: [String]
+
+    var displayName: String {
+        [schoolName, officeName, roleName]
+            .filter { !$0.isEmpty }
+            .joined(separator: "｜")
+    }
+}
+
 enum GASTaskTaxonomy {
     static let categories = ["修繕", "採購", "財產", "場地", "午餐", "工程", "防災", "文書", "會議", "其他"]
     static let priorities = ["高", "中", "低"]

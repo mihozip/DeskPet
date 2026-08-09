@@ -20,7 +20,7 @@ struct TaskDigestView: View {
                         .foregroundStyle(.secondary)
                     Text("尚未取得任務摘要")
                         .font(.headline)
-                    Text("按右上角「重新同步」從總務工作台讀取任務。")
+                    Text("按右上角「重新同步」從校務任務系統讀取任務。")
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

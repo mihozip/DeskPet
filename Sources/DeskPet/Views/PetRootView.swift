@@ -67,7 +67,7 @@ struct PetRootView: View {
                             onOpenNaturalAction()
                         }
 
-                        Button("立即同步總務工作台") {
+                        Button("立即同步校務任務系統") {
                             Task { await ambientMonitor.refresh(manual: true) }
                         }
 
