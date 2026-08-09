@@ -71,6 +71,21 @@ for asset in "${PET_ASSETS[@]}"; do
   fi
 done
 
+for icon_asset in AppIcon.png AppIcon.icns; do
+  if [[ ! -s "Sources/DeskPet/Resources/$icon_asset" ]]; then
+    echo "ERROR: app icon asset is missing or empty: $icon_asset"
+    status=1
+  fi
+done
+if command -v sips >/dev/null 2>&1 && [[ -s "Sources/DeskPet/Resources/AppIcon.png" ]]; then
+  icon_width="$(sips -g pixelWidth Sources/DeskPet/Resources/AppIcon.png 2>/dev/null | awk '/pixelWidth/ { print $2 }')"
+  icon_height="$(sips -g pixelHeight Sources/DeskPet/Resources/AppIcon.png 2>/dev/null | awk '/pixelHeight/ { print $2 }')"
+  if [[ "$icon_width" != "$icon_height" || "${icon_width:-0}" -lt 1024 ]]; then
+    echo "ERROR: AppIcon.png must be square and at least 1024px (found ${icon_width:-?}x${icon_height:-?})"
+    status=1
+  fi
+fi
+
 if [[ ! -s "ASSETS.md" ]]; then
   echo "ERROR: ASSETS.md is required when default artwork is distributed"
   status=1

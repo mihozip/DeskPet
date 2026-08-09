@@ -6,7 +6,7 @@ PRODUCT_NAME="DeskPet"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUNDLE_ID="${BUNDLE_ID:-tw.mihozip.deskpet}"
 VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
-BUILD_NUMBER="950"
+BUILD_NUMBER="951"
 DIST_DIR="$ROOT_DIR/dist-release"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 CONTENTS="$APP_BUNDLE/Contents"
@@ -21,7 +21,7 @@ if [[ -d "/Applications/Xcode.app/Contents/Developer" ]]; then
     export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
 fi
 
-echo "Building DeskPet $VERSION Visible Update Progress (release)…"
+echo "Building DeskPet $VERSION Custom App Icon (release)…"
 swift build -c release --product "$PRODUCT_NAME"
 BIN_DIR="$(swift build -c release --show-bin-path)"
 BINARY="$BIN_DIR/$PRODUCT_NAME"
@@ -44,6 +44,14 @@ for asset in "${PET_ASSETS[@]}"; do
     /usr/bin/xattr -c "$dst" 2>/dev/null || true
 done
 
+APP_ICON_SRC="$PET_RESOURCE_SRC/AppIcon.icns"
+[[ -s "$APP_ICON_SRC" ]] || {
+    echo "ERROR: required app icon is missing or empty: $APP_ICON_SRC" >&2
+    exit 1
+}
+cp "$APP_ICON_SRC" "$RESOURCES_DIR/AppIcon.icns"
+/usr/bin/xattr -c "$RESOURCES_DIR/AppIcon.icns" 2>/dev/null || true
+
 cp "$ROOT_DIR/VERSION" "$RESOURCES_DIR/VERSION"
 cp "$ROOT_DIR/script/install_or_update.sh" "$RESOURCES_DIR/DeskPetUpdater.sh"
 chmod +x "$RESOURCES_DIR/DeskPetUpdater.sh"
@@ -62,6 +70,7 @@ cat > "$CONTENTS/Info.plist" <<PLIST
     <key>CFBundleExecutable</key><string>$APP_NAME</string>
     <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+    <key>CFBundleIconFile</key><string>AppIcon.icns</string>
     <key>CFBundleName</key><string>$APP_NAME</string>
     <key>CFBundleDisplayName</key><string>$APP_NAME</string>
     <key>CFBundlePackageType</key><string>APPL</string>
@@ -113,6 +122,10 @@ for asset in "${PET_ASSETS[@]}"; do
         exit 1
     fi
 done
+if [[ ! -s "$RESOURCES_DIR/AppIcon.icns" ]]; then
+    echo "ERROR: release app icon failed to package" >&2
+    exit 1
+fi
 
 COPYFILE_DISABLE=1 /usr/bin/ditto -c -k --keepParent "$APP_BUNDLE" "$ZIP_PATH"
 

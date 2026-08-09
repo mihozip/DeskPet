@@ -8,6 +8,10 @@ The project maintainer describes these files as AI-assisted redraws created with
 
 The maintainer has approved public redistribution of these four files with DeskPet. Unless a file is accompanied by a different notice, the default DeskPet artwork is distributed under the repository's [MIT License](LICENSE).
 
+## App icon
+
+`Sources/DeskPet/Resources/AppIcon.png` is the maintainer-supplied square source artwork for the DeskPet application icon. `AppIcon.icns` is a deterministic multi-resolution package derived from that PNG without AI regeneration or compositional changes. The maintainer has approved both files for public redistribution with DeskPet under the repository's MIT License.
+
 This provenance note records the maintainer's representation and is not a legal determination that AI assistance or redrawing automatically eliminates every possible third-party right. If you believe an included asset infringes your rights, please open a focused repository Issue with enough information for the maintainer to review the claim; do not include private credentials or unrelated personal data.
 
 ## Contributor-supplied assets
