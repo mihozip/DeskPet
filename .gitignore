@@ -1,0 +1,28 @@
+.build/
+dist/
+dist-release/
+.swiftpm/
+DerivedData/
+.DS_Store
+
+# Local secrets / signing material
+.env
+.env.*
+!.env.example
+*.p12
+*.cer
+*.key
+*.pem
+*.provisionprofile
+*.mobileprovision
+secrets.*
+private/
+
+# Prototype artwork is intentionally not part of the public repository.
+Sources/DeskPet/Resources/pet_*.png
+
+# Editor / IDE
+.vscode/
+.idea/
+*.xcuserstate
+xcuserdata/

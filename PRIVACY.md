@@ -1,0 +1,53 @@
+# DeskPet Privacy Notes
+
+DeskPet is designed as a local-first desktop assistant. This document describes the data paths in the open-source version.
+
+## Local data
+
+DeskPet stores its working data under the current macOS user account:
+
+```text
+~/Library/Application Support/DeskPet/inbox.json
+~/Library/Application Support/DeskPet/work-events.json
+```
+
+Preferences such as pet size, animation intensity, shortcut preset, Gemini model selection and GAS polling settings use macOS `UserDefaults`.
+
+## Keychain secrets
+
+The following values are stored in macOS Keychain rather than source code or JSON data files:
+
+- Gemini API Key
+- DeskPet GAS Gateway API Token
+
+The Keychain service name follows the running app's Bundle Identifier. Diagnostic output reports only whether a credential is configured; it must not print the credential value.
+
+## Gemini
+
+Gemini is optional. When enabled, text that requires AI interpretation may be sent to the Google Gemini API, including Smart Inbox content or natural-language task commands.
+
+The Work Diary itself is not automatically uploaded merely because it exists locally. A future analysis feature must make its transmission scope explicit before sending diary data to an external AI service.
+
+## Voice
+
+Voice commands use macOS microphone and Speech Recognition APIs. The transcribed text is passed into the same task-understanding flow. macOS permission prompts apply.
+
+## Calendar and Reminders
+
+DeskPet uses EventKit. It should not write Calendar events or Reminder items until the user confirms the proposed action.
+
+## Google Apps Script
+
+GAS integration is optional. The user configures their own HTTPS `/exec` deployment URL and API token. DeskPet can read task digests and, after confirmation, create or update tasks.
+
+The public source repository must not contain a real Spreadsheet ID, deployment URL or API token.
+
+## Diagnostics and bug reports
+
+Before posting a public bug report, remove:
+
+- API keys and GAS tokens
+- private GAS deployment URLs
+- Spreadsheet IDs
+- names, emails, schools or organizations
+- Inbox / Diary content containing personal or work-confidential information

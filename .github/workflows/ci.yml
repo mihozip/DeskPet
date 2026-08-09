@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: swift --version
+
+      - name: Public repository checks
+        run: ./script/check_public_repo.sh
+
+      - name: Validate shell scripts
+        run: |
+          bash -n script/build_and_run.sh
+          bash -n script/build_release.sh
+          bash -n script/install_local.sh
+          bash -n script/check_public_repo.sh
+
+      - name: Validate package manifest
+        run: swift package dump-package >/dev/null
+
+      - name: Build
+        run: swift build -c debug --product DeskPet
