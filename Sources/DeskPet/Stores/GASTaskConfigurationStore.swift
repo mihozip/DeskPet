@@ -10,7 +10,7 @@ final class GASTaskConfigurationStore: ObservableObject {
         static let ambientIntervalMinutes = "DeskPet.gas.ambient.intervalMinutes.v1"
         static let integrationMetadata = "DeskPet.gas.integrationMetadata.v1"
         static let administrativeTitleOverride = "DeskPet.gas.administrativeTitleOverride.v1"
-        static let workRoleName = "DeskPet.interface.workRoleName.v1"
+        static let legacyWorkRoleName = "DeskPet.interface.workRoleName.v1"
     }
 
     private enum KeychainKey {
@@ -18,13 +18,12 @@ final class GASTaskConfigurationStore: ObservableObject {
     }
 
     static let defaultEndpoint = ""
-    static let defaultWorkRoleName = "總務"
+    static let defaultAdministrativeTitle = "總務"
 
     @Published private(set) var hasAPIToken = false
     @Published private(set) var statusMessage = "尚未設定校務任務系統 API Token"
     @Published private(set) var integrationMetadata: GASTaskIntegrationMetadata?
     @Published private(set) var administrativeTitleOverride: String
-    @Published private(set) var workRoleName: String
 
     var isEnabled: Bool {
         get { UserDefaults.standard.bool(forKey: DefaultsKey.enabled) }
@@ -73,15 +72,16 @@ final class GASTaskConfigurationStore: ObservableObject {
     }
 
     var administrativeTitle: String {
-        administrativeTitleOverride.isEmpty
-            ? (integrationMetadata?.roleName ?? "")
-            : administrativeTitleOverride
+        Self.resolveAdministrativeTitle(
+            override: administrativeTitleOverride,
+            dashboardTitle: integrationMetadata?.roleName
+        )
     }
 
-    var workbenchTitle: String { "\(workRoleName)工作台" }
-    var taskDigestTitle: String { "\(workRoleName)工作摘要" }
-    var taskActionTitle: String { "\(workRoleName)任務操作" }
-    var reminderTitle: String { "\(workRoleName)提醒" }
+    var workbenchTitle: String { "\(administrativeTitle)工作台" }
+    var taskDigestTitle: String { "\(administrativeTitle)工作摘要" }
+    var taskActionTitle: String { "\(administrativeTitle)任務操作" }
+    var reminderTitle: String { "\(administrativeTitle)工作提醒" }
 
     var ambientEnabled: Bool {
         get {
@@ -109,12 +109,21 @@ final class GASTaskConfigurationStore: ObservableObject {
     private let keychain = KeychainService(service: Bundle.main.bundleIdentifier ?? "DeskPet")
 
     init() {
-        administrativeTitleOverride = UserDefaults.standard
-            .string(forKey: DefaultsKey.administrativeTitleOverride) ?? ""
-        let savedRoleName = UserDefaults.standard
-            .string(forKey: DefaultsKey.workRoleName)?
+        let savedOverride = UserDefaults.standard
+            .string(forKey: DefaultsKey.administrativeTitleOverride)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        workRoleName = savedRoleName.isEmpty ? Self.defaultWorkRoleName : savedRoleName
+        let legacyRoleName = UserDefaults.standard
+            .string(forKey: DefaultsKey.legacyWorkRoleName)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let canMigrateLegacyRole = savedOverride.isEmpty
+            && !legacyRoleName.isEmpty
+            && legacyRoleName.count <= 40
+            && legacyRoleName.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) })
+        administrativeTitleOverride = canMigrateLegacyRole ? legacyRoleName : savedOverride
+        if canMigrateLegacyRole {
+            UserDefaults.standard.set(legacyRoleName, forKey: DefaultsKey.administrativeTitleOverride)
+        }
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.legacyWorkRoleName)
         if let data = UserDefaults.standard.data(forKey: DefaultsKey.integrationMetadata) {
             integrationMetadata = try? JSONDecoder().decode(GASTaskIntegrationMetadata.self, from: data)
         }
@@ -150,22 +159,6 @@ final class GASTaskConfigurationStore: ObservableObject {
     func clearAdministrativeTitleOverride() {
         administrativeTitleOverride = ""
         UserDefaults.standard.removeObject(forKey: DefaultsKey.administrativeTitleOverride)
-    }
-
-    func saveWorkRoleName(_ rawValue: String) throws {
-        let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty,
-              value.count <= 20,
-              value.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) else {
-            throw ConfigurationError.invalidWorkRoleName
-        }
-        workRoleName = value
-        UserDefaults.standard.set(value, forKey: DefaultsKey.workRoleName)
-    }
-
-    func resetWorkRoleName() {
-        workRoleName = Self.defaultWorkRoleName
-        UserDefaults.standard.removeObject(forKey: DefaultsKey.workRoleName)
     }
 
     func apiToken() throws -> String? {
@@ -205,17 +198,18 @@ final class GASTaskConfigurationStore: ObservableObject {
         return values
     }
 
+    static func resolveAdministrativeTitle(override: String, dashboardTitle: String?) -> String {
+        let localValue = override.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !localValue.isEmpty { return localValue }
+        let dashboardValue = dashboardTitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return dashboardValue.isEmpty ? defaultAdministrativeTitle : dashboardValue
+    }
+
     private enum ConfigurationError: LocalizedError {
         case invalidAdministrativeTitle
-        case invalidWorkRoleName
 
         var errorDescription: String? {
-            switch self {
-            case .invalidAdministrativeTitle:
-                return "行政職稱不可超過 40 個字，也不可包含控制字元。"
-            case .invalidWorkRoleName:
-                return "介面角色名稱不可留白、不可超過 20 個字，也不可包含控制字元。"
-            }
+            "行政職稱不可超過 40 個字，也不可包含控制字元。"
         }
     }
 }

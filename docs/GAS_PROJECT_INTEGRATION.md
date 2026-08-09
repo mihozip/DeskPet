@@ -139,14 +139,15 @@ Gateway 從 `選項清單` 動態讀取：
 
 ## DeskPet 行政職稱覆寫
 
-DeskPet 預設把 integration metadata 的 `ROLE_NAME` 當成行政職稱。設定頁可建立本機覆寫，例如在不切換 Dashboard profile 的情況下，把 DeskPet 新建任務的負責人顯示為代理主任或自訂職稱。
+DeskPet 依序使用本機覆寫、integration metadata 的 `ROLE_NAME`，最後才使用預設「總務」。可在「設定 → 一般 → 行政職稱與工作介面」建立本機覆寫，例如在不切換 Dashboard profile 的情況下使用代理主任或自訂職稱。
 
 本機覆寫具有以下邊界：
 
 - 儲存在 DeskPet `UserDefaults`，不送回 Dashboard 系統設定。
-- 只套用到 DeskPet `createTask` request 的 `owner` 欄位。
+- 同時套用到 DeskPet 工作台、工作摘要、工作提醒、任務操作、相關任務訊息，以及 `createTask` request 的 `owner` 欄位。
 - 不修改 Dashboard 的 `OFFICE_KEY`、`ROLE_KEY`、`ROLE_NAME` 或 `DEFAULT_OWNER`。
-- 清除覆寫後立即恢復使用最新同步的 Dashboard `ROLE_NAME`。
+- 清除覆寫後立即恢復使用最新同步的 Dashboard `ROLE_NAME`；若 Dashboard 尚未提供職稱，則顯示預設「總務」。
+- 從 `0.9.3.0` 更新時，舊工作介面名稱會在沒有既有行政職稱覆寫的前提下自動遷移一次。
 
 正式切換處室或職務仍應使用 Dashboard 的「安裝／選擇處室」，再回 DeskPet 測試連線以刷新 metadata。
 

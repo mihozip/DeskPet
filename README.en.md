@@ -9,7 +9,7 @@
 
 DeskPet is a macOS desktop work agent built with Swift, SwiftUI and AppKit. It connects quick capture, optional Gemini interpretation, human confirmation, Calendar / Reminders / Google Apps Script task actions, ambient monitoring, duplicate detection and a local work-event diary.
 
-Current version: **0.9.3.0 — Configurable Work Role (pre-1.0 / RC)**.
+Current version: **0.9.4.0 — Unified Administrative Title UI (pre-1.0 / RC)**.
 
 ## Quick start
 
@@ -29,8 +29,6 @@ Four default AI-assisted redrawn white-cat illustrations are included for idle, 
 
 The Gateway integrates with [`mihozip/school-admin-daily-dashboard`](https://github.com/mihozip/school-admin-daily-dashboard) through a separate token-protected Web App. See the main [Traditional Chinese README](README.md), [privacy notes](PRIVACY.md), [architecture](docs/ARCHITECTURE.md), [security policy](SECURITY.md), and the [Dashboard integration guide](docs/GAS_PROJECT_INTEGRATION.md).
 
-The administrative title follows the Dashboard `ROLE_NAME` by default. A local override can be configured in DeskPet and is applied to the owner field of tasks created by DeskPet without changing the Dashboard profile keys.
-
-The interface work-role label is configured separately under **Settings → General → Work Interface Name**. It controls labels such as the workbench, task digest, reminders and task actions without changing task ownership.
+DeskPet resolves the administrative title in this order: local override, Dashboard `ROLE_NAME`, then the `總務` fallback. One title now controls the workbench, digest, work reminder, task-action labels, related task messages and the owner of tasks created by DeskPet, without changing Dashboard profile keys. The retired 0.9.3.0 interface-name preference is migrated automatically.
 
 Source code and the maintainer-supplied default artwork are distributed under the [MIT License](LICENSE). Third-party or contributor-supplied assets retain their own terms.

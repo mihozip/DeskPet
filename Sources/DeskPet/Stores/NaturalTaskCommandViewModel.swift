@@ -39,7 +39,7 @@ final class NaturalTaskCommandViewModel: ObservableObject {
         return "本機規則（Gemini 未啟用）"
     }
 
-    var workRoleName: String { monitor.workRoleName }
+    var administrativeTitle: String { monitor.administrativeTitle }
 
     func analyze() async {
         let text = commandText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -73,7 +73,7 @@ final class NaturalTaskCommandViewModel: ObservableObject {
         }
 
         guard !tasks.isEmpty else {
-            statusMessage = "目前沒有可操作的\(workRoleName)任務。"
+            statusMessage = "目前沒有可操作的\(administrativeTitle)任務。"
             return
         }
 

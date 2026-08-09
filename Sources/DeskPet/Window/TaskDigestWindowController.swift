@@ -7,7 +7,7 @@ final class TaskDigestWindowController: NSWindowController, NSWindowDelegate {
     private let monitor: GASTaskAmbientMonitor
     private let gasConfiguration: GASTaskConfigurationStore
     private let onOpenTask: (GASTaskDigest.Task) -> Void
-    private var roleNameCancellable: AnyCancellable?
+    private var administrativeTitleCancellable: AnyCancellable?
 
     init(
         monitor: GASTaskAmbientMonitor,
@@ -38,8 +38,15 @@ final class TaskDigestWindowController: NSWindowController, NSWindowDelegate {
 
         super.init(window: window)
         window.delegate = self
-        roleNameCancellable = gasConfiguration.$workRoleName.sink { [weak window] _ in
-            window?.title = "DeskPet \(gasConfiguration.taskDigestTitle)"
+        administrativeTitleCancellable = Publishers.CombineLatest(
+            gasConfiguration.$administrativeTitleOverride,
+            gasConfiguration.$integrationMetadata
+        ).sink { [weak window] localOverride, metadata in
+            let title = GASTaskConfigurationStore.resolveAdministrativeTitle(
+                override: localOverride,
+                dashboardTitle: metadata?.roleName
+            )
+            window?.title = "DeskPet \(title)工作摘要"
         }
     }
 

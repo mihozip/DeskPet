@@ -9,7 +9,7 @@
 
 DeskPet 是一隻住在 macOS 桌面的工作代理人。它把快速記事、規則或 Gemini 理解、人工確認、Calendar／Reminders／GAS 任務執行，以及每日工作日誌串成同一條可追蹤的工作流。
 
-**目前版本：0.9.3.0 — Configurable Work Role（pre-1.0 / RC）**
+**目前版本：0.9.4.0 — Unified Administrative Title UI（pre-1.0 / RC）**
 
 DeskPet 是以 Swift / SwiftUI / AppKit 開發的 macOS 桌面工具。它不是要取代既有的任務系統，而是提供一個隨手可用的桌面入口，把零散資訊轉成可追蹤的工作。
 
@@ -115,13 +115,11 @@ DeskPet Gateway 已依 [`mihozip/school-admin-daily-dashboard`](https://github.c
 
 Gateway 必須建成獨立 Apps Script 專案，再透過 `DESKPET_SPREADSHEET_ID` 附掛到已安裝完成的 Dashboard 試算表。它會動態讀取 Dashboard 的學校、處室、職務與選項清單，不會自行建立或覆寫工作表。
 
-### 工作介面名稱
-
-可在「設定 → 一般 → 工作介面名稱」把預設的「總務」改成「教務」、「學務」、「資訊」或自訂名稱。設定會同步套用到工作台、工作摘要、提醒、任務操作與相關訊息；它只影響 DeskPet 介面，不修改 Dashboard profile 或任務負責人。
-
 ### 行政職稱
 
-連線 Dashboard 後，DeskPet 預設使用該 profile 的 `ROLE_NAME`。使用者也可以在「設定 → 整合 → 行政職稱」設定本機覆寫；覆寫值會套用到 DeskPet 新建任務的負責人名稱，但不會改寫 Dashboard 的 `OFFICE_KEY`／`ROLE_KEY`。隨時可按「跟隨 Dashboard」恢復同步。
+DeskPet 依序使用「本機行政職稱覆寫 → Dashboard `ROLE_NAME` → 預設 `總務`」。可在「設定 → 一般 → 行政職稱與工作介面」修改或恢復跟隨 Dashboard。
+
+同一職稱會套用到「職稱工作台」、「職稱工作摘要」、「職稱工作提醒」、「職稱任務操作」、相關任務提示，以及 DeskPet 新建任務的負責人名稱；不會改寫 Dashboard 的 `OFFICE_KEY`／`ROLE_KEY`。從 `0.9.3.0` 更新時，舊「工作介面名稱」會自動遷移成行政職稱覆寫。
 
 核心安全邊界：
 

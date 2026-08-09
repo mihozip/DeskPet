@@ -41,8 +41,6 @@ final class SettingsViewModel: ObservableObject {
     @Published var ambientIntervalMinutes: Int
     @Published var administrativeTitleDraft: String
     @Published private(set) var administrativeTitleStatus: String
-    @Published var workRoleNameDraft: String
-    @Published private(set) var workRoleNameStatus: String
 
     let hotKeyService: GlobalHotKeyService
     let aiConfiguration: AIConfigurationStore
@@ -88,11 +86,7 @@ final class SettingsViewModel: ObservableObject {
         ambientEnabled = gasConfiguration.ambientEnabled
         ambientIntervalMinutes = gasConfiguration.ambientIntervalMinutes
         administrativeTitleDraft = gasConfiguration.administrativeTitle
-        administrativeTitleStatus = gasConfiguration.administrativeTitleOverride.isEmpty
-            ? "目前跟隨 Dashboard 行政職稱"
-            : "目前使用 DeskPet 本機覆寫"
-        workRoleNameDraft = gasConfiguration.workRoleName
-        workRoleNameStatus = "介面目前顯示「\(gasConfiguration.workbenchTitle)」"
+        administrativeTitleStatus = Self.administrativeTitleSourceStatus(for: gasConfiguration)
     }
 
     var shortcutPresets: [GlobalHotKeyService.ShortcutPreset] { hotKeyService.availablePresets }
@@ -206,9 +200,7 @@ final class SettingsViewModel: ObservableObject {
         do {
             try gasConfiguration.saveAdministrativeTitle(administrativeTitleDraft)
             administrativeTitleDraft = gasConfiguration.administrativeTitle
-            administrativeTitleStatus = gasConfiguration.administrativeTitleOverride.isEmpty
-                ? "已恢復跟隨 Dashboard 行政職稱"
-                : "行政職稱已儲存；DeskPet 新建任務會使用此負責人名稱"
+            administrativeTitleStatus = Self.administrativeTitleSourceStatus(for: gasConfiguration)
         } catch {
             administrativeTitleStatus = error.localizedDescription
         }
@@ -217,23 +209,7 @@ final class SettingsViewModel: ObservableObject {
     func resetAdministrativeTitle() {
         gasConfiguration.clearAdministrativeTitleOverride()
         administrativeTitleDraft = gasConfiguration.administrativeTitle
-        administrativeTitleStatus = "已恢復跟隨 Dashboard 行政職稱"
-    }
-
-    func saveWorkRoleName() {
-        do {
-            try gasConfiguration.saveWorkRoleName(workRoleNameDraft)
-            workRoleNameDraft = gasConfiguration.workRoleName
-            workRoleNameStatus = "已套用：\(gasConfiguration.workbenchTitle)｜\(gasConfiguration.taskDigestTitle)｜\(gasConfiguration.reminderTitle)"
-        } catch {
-            workRoleNameStatus = error.localizedDescription
-        }
-    }
-
-    func resetWorkRoleName() {
-        gasConfiguration.resetWorkRoleName()
-        workRoleNameDraft = gasConfiguration.workRoleName
-        workRoleNameStatus = "已恢復預設：\(gasConfiguration.workbenchTitle)"
+        administrativeTitleStatus = Self.administrativeTitleSourceStatus(for: gasConfiguration)
     }
 
     func saveGASEndpoint() {
@@ -283,7 +259,7 @@ final class SettingsViewModel: ObservableObject {
                 gasConnectionSucceeded = true
                 if gasConfiguration.administrativeTitleOverride.isEmpty {
                     administrativeTitleDraft = gasConfiguration.administrativeTitle
-                    administrativeTitleStatus = "目前跟隨 Dashboard 行政職稱"
+                    administrativeTitleStatus = Self.administrativeTitleSourceStatus(for: gasConfiguration)
                 }
                 ambientMonitor.reconfigure()
             } catch {
@@ -306,5 +282,19 @@ final class SettingsViewModel: ObservableObject {
 
     func refreshAmbientNow() {
         Task { await ambientMonitor.refresh(manual: true) }
+    }
+
+    private static func administrativeTitleSourceStatus(for configuration: GASTaskConfigurationStore) -> String {
+        let title = configuration.administrativeTitle
+        let interfacePreview = "\(configuration.workbenchTitle)｜\(configuration.taskDigestTitle)｜\(configuration.reminderTitle)"
+        if !configuration.administrativeTitleOverride.isEmpty {
+            return "目前使用本機行政職稱「\(title)」：\(interfacePreview)；新建任務也使用此負責人名稱"
+        }
+        let dashboardTitle = configuration.integrationMetadata?.roleName
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !dashboardTitle.isEmpty {
+            return "目前跟隨 Dashboard 行政職稱「\(title)」：\(interfacePreview)"
+        }
+        return "Dashboard 尚無行政職稱，目前使用預設「\(title)」：\(interfacePreview)"
     }
 }

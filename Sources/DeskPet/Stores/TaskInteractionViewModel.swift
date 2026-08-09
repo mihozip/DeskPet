@@ -53,7 +53,6 @@ final class TaskInteractionViewModel: ObservableObject {
         }
     }
 
-    var workRoleName: String { gasConfiguration.workRoleName }
     var taskActionTitle: String { gasConfiguration.taskActionTitle }
 
     func choose(_ action: GASTaskMutationKind) {

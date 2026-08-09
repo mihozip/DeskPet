@@ -36,8 +36,8 @@ jobs:
       - name: Validate updater entrypoint
         run: ./tests/updater_cli.test.sh
 
-      - name: Validate configurable work-role labels
-        run: ./tests/work_role_labels.test.sh
+      - name: Validate administrative-title UI
+        run: ./tests/administrative_title_ui.test.sh
 
       - name: Validate package manifest
         run: swift package dump-package >/dev/null
