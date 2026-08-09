@@ -39,5 +39,10 @@ jobs:
       - name: Validate package manifest
         run: swift package dump-package >/dev/null
 
-      - name: Build
-        run: swift build -c debug --product DeskPet
+      - name: Build and verify app resources
+        run: |
+          DESKPET_SKIP_LAUNCH=1 ./script/build_and_run.sh
+          test -s dist/DeskPet.app/Contents/Resources/pet_idle.png
+          test -s dist/DeskPet.app/Contents/Resources/pet_listening.png
+          test -s dist/DeskPet.app/Contents/Resources/pet_success.png
+          test -s dist/DeskPet.app/Contents/Resources/pet_sleep.png

@@ -6,7 +6,7 @@ PRODUCT_NAME="DeskPet"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUNDLE_ID="${BUNDLE_ID:-tw.mihozip.deskpet}"
 VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
-BUILD_NUMBER="920"
+BUILD_NUMBER="921"
 DIST_DIR="$ROOT_DIR/dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 CONTENTS="$APP_BUNDLE/Contents"
@@ -23,7 +23,9 @@ echo "DeskPet build toolchain:"
 /usr/bin/xcrun --find swift 2>/dev/null || command -v swift
 swift --version
 
-pkill -x "$APP_NAME" 2>/dev/null || true
+if [[ "${DESKPET_SKIP_LAUNCH:-0}" != "1" ]]; then
+    pkill -x "$APP_NAME" 2>/dev/null || true
+fi
 
 swift build -c debug --product "$PRODUCT_NAME"
 BIN_DIR="$(swift build -c debug --show-bin-path)"
@@ -39,13 +41,12 @@ PET_ASSETS=(pet_idle.png pet_listening.png pet_success.png pet_sleep.png)
 for asset in "${PET_ASSETS[@]}"; do
     src="$PET_RESOURCE_SRC/$asset"
     dst="$RESOURCES_DIR/$asset"
-    if [[ -s "$src" ]]; then
-        cp "$src" "$dst"
-        /usr/bin/xattr -c "$dst" 2>/dev/null || true
-    else
-        echo "WARN: optional pet asset missing: $asset (fallback UI will be used)"
-        continue
-    fi
+    [[ -s "$src" ]] || {
+        echo "ERROR: required default pet asset is missing or empty: $src" >&2
+        exit 1
+    }
+    cp "$src" "$dst"
+    /usr/bin/xattr -c "$dst" 2>/dev/null || true
 done
 
 cp "$ROOT_DIR/VERSION" "$RESOURCES_DIR/VERSION"
@@ -92,5 +93,9 @@ for asset in "${PET_ASSETS[@]}"; do
     fi
 done
 
-/usr/bin/open -n "$APP_BUNDLE"
-echo "Launched: $APP_BUNDLE"
+if [[ "${DESKPET_SKIP_LAUNCH:-0}" == "1" ]]; then
+    echo "Packaged without launching: $APP_BUNDLE"
+else
+    /usr/bin/open -n "$APP_BUNDLE"
+    echo "Launched: $APP_BUNDLE"
+fi
