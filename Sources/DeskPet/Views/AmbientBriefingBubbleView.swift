@@ -2,13 +2,14 @@ import SwiftUI
 
 struct AmbientBriefingBubbleView: View {
     @ObservedObject var monitor: GASTaskAmbientMonitor
+    @ObservedObject var gasConfiguration: GASTaskConfigurationStore
 
     var body: some View {
         if let announcement = monitor.announcement {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
                     Text("🐱")
-                    Text("總務提醒")
+                    Text(gasConfiguration.reminderTitle)
                         .font(.headline)
                     Spacer()
                     Button {

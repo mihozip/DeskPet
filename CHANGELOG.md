@@ -2,6 +2,15 @@
 
 All notable changes to DeskPet are documented here. The project is pre-1.0, so interfaces and stored-data formats may still evolve.
 
+## [0.9.3.0] - 2026-08
+
+### Added
+- Added a persistent interface work-role name under General settings, with a default of `總務` and validation for custom values.
+- Workbench, task digest, reminder, task-action and related task messages now use the configured role name.
+
+### Changed
+- Kept the interface role name separate from the GAS administrative-title override so display customization never changes task ownership or Dashboard profile keys.
+
 ## [0.9.2.1] - 2026-08
 
 ### Fixed

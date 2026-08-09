@@ -56,7 +56,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("DeskPet \(softwareUpdate.currentVersion)")
                     .font(.title2.bold())
-                Text("School Admin Edition — 可更新、可嫁接、可自訂行政職稱。")
+                Text("\(model.gasConfiguration.workbenchTitle) — 可更新、可嫁接、可自訂介面名稱與行政職稱。")
                     .foregroundStyle(.secondary)
             }
             Spacer()
@@ -118,6 +118,27 @@ struct SettingsView: View {
                 }
 
                 Text("「安靜」會降低移動幅度與畫面更新頻率，適合整天開著；「活潑」保留完整動畫效果。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            settingsCard("工作介面名稱", systemImage: "textformat") {
+                HStack {
+                    Text("角色名稱")
+                        .frame(width: 90, alignment: .leading)
+                    TextField("例如：總務、教務、學務、資訊", text: $model.workRoleNameDraft)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { model.saveWorkRoleName() }
+                    Button("儲存名稱") { model.saveWorkRoleName() }
+                    Button("恢復預設") { model.resetWorkRoleName() }
+                        .disabled(model.gasConfiguration.workRoleName == GASTaskConfigurationStore.defaultWorkRoleName)
+                }
+
+                Text(model.workRoleNameStatus)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text("套用於工作台、工作摘要、提醒與任務操作等介面標題；不會修改 Dashboard 設定或任務負責人。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
