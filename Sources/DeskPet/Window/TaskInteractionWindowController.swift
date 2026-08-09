@@ -1,17 +1,29 @@
 import AppKit
+import Combine
 import SwiftUI
 
 @MainActor
 final class TaskInteractionWindowController: NSWindowController, NSWindowDelegate {
     private let connector: GASTaskConnector
+    private let gasConfiguration: GASTaskConfigurationStore
     private let monitor: GASTaskAmbientMonitor
     private let workEventStore: WorkEventStore
+    private var roleNameCancellable: AnyCancellable?
 
-    init(connector: GASTaskConnector, monitor: GASTaskAmbientMonitor, workEventStore: WorkEventStore) {
+    init(
+        connector: GASTaskConnector,
+        gasConfiguration: GASTaskConfigurationStore,
+        monitor: GASTaskAmbientMonitor,
+        workEventStore: WorkEventStore
+    ) {
         self.connector = connector
+        self.gasConfiguration = gasConfiguration
         self.monitor = monitor
         self.workEventStore = workEventStore
         super.init(window: nil)
+        roleNameCancellable = gasConfiguration.$workRoleName.sink { [weak self] _ in
+            self?.window?.title = "DeskPet \(gasConfiguration.taskActionTitle)"
+        }
     }
 
     required init?(coder: NSCoder) {
@@ -27,6 +39,7 @@ final class TaskInteractionWindowController: NSWindowController, NSWindowDelegat
         let model = TaskInteractionViewModel(
             task: task,
             connector: connector,
+            gasConfiguration: gasConfiguration,
             workEventStore: workEventStore,
             preselectedAction: preselectedAction,
             prefilledNote: prefilledNote,
@@ -47,7 +60,7 @@ final class TaskInteractionWindowController: NSWindowController, NSWindowDelegat
                 backing: .buffered,
                 defer: false
             )
-            window.title = "DeskPet 任務操作"
+            window.title = "DeskPet \(gasConfiguration.taskActionTitle)"
             window.minSize = NSSize(width: 590, height: 560)
             window.isReleasedWhenClosed = false
             window.center()
@@ -55,6 +68,8 @@ final class TaskInteractionWindowController: NSWindowController, NSWindowDelegat
             window.delegate = self
             self.window = window
         }
+
+        window.title = "DeskPet \(gasConfiguration.taskActionTitle)"
 
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)

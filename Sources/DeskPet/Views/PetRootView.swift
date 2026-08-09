@@ -4,6 +4,7 @@ struct PetRootView: View {
     @ObservedObject var model: PetViewModel
     @ObservedObject var ambientMonitor: GASTaskAmbientMonitor
     @ObservedObject var dailyPreferences: DailyUsePreferencesStore
+    @ObservedObject var gasConfiguration: GASTaskConfigurationStore
 
     let onOpenInbox: () -> Void
     let onOpenTaskDigest: () -> Void
@@ -25,7 +26,7 @@ struct PetRootView: View {
                     .padding(.trailing, 30)
 
                 if model.state == .idle {
-                    AmbientBriefingBubbleView(monitor: ambientMonitor)
+                    AmbientBriefingBubbleView(monitor: ambientMonitor, gasConfiguration: gasConfiguration)
                         .padding(.trailing, 30)
                 }
 
@@ -51,7 +52,7 @@ struct PetRootView: View {
                             onOpenInbox()
                         }
 
-                        Button("總務工作摘要") {
+                        Button(gasConfiguration.taskDigestTitle) {
                             onOpenTaskDigest()
                         }
 
@@ -104,5 +105,6 @@ struct PetRootView: View {
             }
         }
         .frame(width: 400, height: 220)
+        .accessibilityLabel(gasConfiguration.workbenchTitle)
     }
 }

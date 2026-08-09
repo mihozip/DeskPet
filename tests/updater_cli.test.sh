@@ -21,7 +21,8 @@ if "$UPDATER" --wait-pid not-a-pid --no-launch >/dev/null 2>&1; then
 fi
 
 BUILD_STATUS_LINE="$(grep '^echo "Building DeskPet ' "$UPDATER")"
-if ! LATEST_VERSION=0.9.2.1 /bin/bash -u -c "$BUILD_STATUS_LINE" >/dev/null; then
+TEST_VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
+if ! LATEST_VERSION="$TEST_VERSION" /bin/bash -u -c "$BUILD_STATUS_LINE" >/dev/null; then
   echo "ERROR: updater status output is unsafe under Bash nounset" >&2
   exit 1
 fi

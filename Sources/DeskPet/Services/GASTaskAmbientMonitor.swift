@@ -26,6 +26,7 @@ final class GASTaskAmbientMonitor: ObservableObject {
     }
 
     var intervalMinutes: Int { configuration.ambientIntervalMinutes }
+    var workRoleName: String { configuration.workRoleName }
 
     func start() {
         reconfigure()
@@ -92,7 +93,7 @@ final class GASTaskAmbientMonitor: ObservableObject {
             hasCompletedFirstSync = true
 
             if shouldAnnounce {
-                showAnnouncement(Self.announcementText(for: newDigest))
+                showAnnouncement(Self.announcementText(for: newDigest, workRoleName: configuration.workRoleName))
             }
         } catch {
             statusMessage = "同步失敗：\(error.localizedDescription)"
@@ -135,7 +136,7 @@ final class GASTaskAmbientMonitor: ObservableObject {
         return "已同步：進行中 \(s.active)｜今日 \(s.dueToday)｜逾期 \(s.overdue)｜高優先 \(s.urgent)｜等待 \(s.waiting)"
     }
 
-    private static func announcementText(for digest: GASTaskDigest) -> String {
+    private static func announcementText(for digest: GASTaskDigest, workRoleName: String) -> String {
         let s = digest.summary
         var parts: [String] = []
         if s.overdue > 0 { parts.append("\(s.overdue) 件逾期") }
@@ -144,7 +145,7 @@ final class GASTaskAmbientMonitor: ObservableObject {
         if s.waiting > 0 { parts.append("\(s.waiting) 件等待中") }
 
         if parts.isEmpty {
-            return s.active == 0 ? "目前沒有進行中的總務任務。" : "目前有 \(s.active) 件進行中任務，沒有急迫項目。"
+            return s.active == 0 ? "目前沒有進行中的\(workRoleName)任務。" : "目前有 \(s.active) 件進行中任務，沒有急迫項目。"
         }
 
         if let first = digest.tasks.first {

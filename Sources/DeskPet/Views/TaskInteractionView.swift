@@ -26,7 +26,7 @@ struct TaskInteractionView: View {
     private var header: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("總務任務操作")
+                Text(model.taskActionTitle)
                     .font(.title2.bold())
                 Text("所有寫入都要經過這個確認畫面。")
                     .foregroundStyle(.secondary)

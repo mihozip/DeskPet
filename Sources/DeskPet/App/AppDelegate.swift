@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let interactionController = TaskInteractionWindowController(
             connector: gasConnector,
+            gasConfiguration: gasConfiguration,
             monitor: ambientMonitor,
             workEventStore: workEventStore
         )
@@ -68,6 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let digestController = TaskDigestWindowController(
             monitor: ambientMonitor,
+            gasConfiguration: gasConfiguration,
             onOpenTask: { [weak interactionController] task in interactionController?.show(task: task) }
         )
         taskDigestWindowController = digestController
@@ -91,7 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         return
                     }
 
-                    // 已完成或不在摘要前 30 筆時，至少帶使用者回總務摘要；Inbox 仍保留 taskId 可供搜尋。
+                    // 已完成或不在摘要前 30 筆時，至少帶使用者回工作摘要；Inbox 仍保留 taskId 可供搜尋。
                     digestController?.showDigest()
                 }
             }
@@ -132,6 +134,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             store: store,
             ambientMonitor: ambientMonitor,
             dailyPreferences: dailyPreferences,
+            gasConfiguration: gasConfiguration,
             onOpenInbox: { [weak inboxController] in inboxController?.showInbox() },
             onOpenTaskDigest: { [weak digestController] in digestController?.showDigest() },
             onOpenDiary: { [weak diaryController] in diaryController?.showDiary() },

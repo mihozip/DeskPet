@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TaskDigestView: View {
     @ObservedObject var monitor: GASTaskAmbientMonitor
+    @ObservedObject var gasConfiguration: GASTaskConfigurationStore
     let onOpenTask: (GASTaskDigest.Task) -> Void
 
     var body: some View {
@@ -35,7 +36,7 @@ struct TaskDigestView: View {
     private var header: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("總務工作摘要")
+                Text(gasConfiguration.taskDigestTitle)
                     .font(.title2.bold())
                 Text(monitor.statusMessage)
                     .font(.callout)

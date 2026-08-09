@@ -15,12 +15,14 @@ final class TaskInteractionViewModel: ObservableObject {
     @Published private(set) var didSucceed = false
 
     private let connector: GASTaskConnector
+    private let gasConfiguration: GASTaskConfigurationStore
     private let workEventStore: WorkEventStore
     private let onUpdated: () async -> Void
 
     init(
         task: GASTaskDigest.Task,
         connector: GASTaskConnector,
+        gasConfiguration: GASTaskConfigurationStore,
         workEventStore: WorkEventStore,
         preselectedAction: GASTaskMutationKind? = nil,
         prefilledNote: String? = nil,
@@ -29,6 +31,7 @@ final class TaskInteractionViewModel: ObservableObject {
     ) {
         self.task = task
         self.connector = connector
+        self.gasConfiguration = gasConfiguration
         self.workEventStore = workEventStore
         self.onUpdated = onUpdated
         seedDates(from: task)
@@ -49,6 +52,9 @@ final class TaskInteractionViewModel: ObservableObject {
             self.note = prefilledNote
         }
     }
+
+    var workRoleName: String { gasConfiguration.workRoleName }
+    var taskActionTitle: String { gasConfiguration.taskActionTitle }
 
     func choose(_ action: GASTaskMutationKind) {
         selectedAction = action

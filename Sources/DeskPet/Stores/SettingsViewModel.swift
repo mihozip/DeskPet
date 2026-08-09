@@ -41,6 +41,8 @@ final class SettingsViewModel: ObservableObject {
     @Published var ambientIntervalMinutes: Int
     @Published var administrativeTitleDraft: String
     @Published private(set) var administrativeTitleStatus: String
+    @Published var workRoleNameDraft: String
+    @Published private(set) var workRoleNameStatus: String
 
     let hotKeyService: GlobalHotKeyService
     let aiConfiguration: AIConfigurationStore
@@ -89,6 +91,8 @@ final class SettingsViewModel: ObservableObject {
         administrativeTitleStatus = gasConfiguration.administrativeTitleOverride.isEmpty
             ? "目前跟隨 Dashboard 行政職稱"
             : "目前使用 DeskPet 本機覆寫"
+        workRoleNameDraft = gasConfiguration.workRoleName
+        workRoleNameStatus = "介面目前顯示「\(gasConfiguration.workbenchTitle)」"
     }
 
     var shortcutPresets: [GlobalHotKeyService.ShortcutPreset] { hotKeyService.availablePresets }
@@ -214,6 +218,22 @@ final class SettingsViewModel: ObservableObject {
         gasConfiguration.clearAdministrativeTitleOverride()
         administrativeTitleDraft = gasConfiguration.administrativeTitle
         administrativeTitleStatus = "已恢復跟隨 Dashboard 行政職稱"
+    }
+
+    func saveWorkRoleName() {
+        do {
+            try gasConfiguration.saveWorkRoleName(workRoleNameDraft)
+            workRoleNameDraft = gasConfiguration.workRoleName
+            workRoleNameStatus = "已套用：\(gasConfiguration.workbenchTitle)｜\(gasConfiguration.taskDigestTitle)｜\(gasConfiguration.reminderTitle)"
+        } catch {
+            workRoleNameStatus = error.localizedDescription
+        }
+    }
+
+    func resetWorkRoleName() {
+        gasConfiguration.resetWorkRoleName()
+        workRoleNameDraft = gasConfiguration.workRoleName
+        workRoleNameStatus = "已恢復預設：\(gasConfiguration.workbenchTitle)"
     }
 
     func saveGASEndpoint() {
