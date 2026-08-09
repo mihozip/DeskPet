@@ -7,7 +7,7 @@ enum DuplicateCandidateSource: String {
     var displayName: String {
         switch self {
         case .inbox: return "DeskPet Inbox"
-        case .gas: return "總務工作台"
+        case .gas: return "校務任務系統"
         }
     }
 }

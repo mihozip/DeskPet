@@ -1,56 +1,92 @@
-# 把 DeskPet GAS Gateway 接到你的專案
+# 嫁接 school-admin-daily-dashboard
 
-這份文件說明如何讓公開版 DeskPet 使用你自己的 Google Spreadsheet，或接進既有的 Google Apps Script 工作系統，同時避免把 Spreadsheet ID、部署網址與 Token 寫進公開原始碼。
+DeskPet Gateway 已依 [`mihozip/school-admin-daily-dashboard`](https://github.com/mihozip/school-admin-daily-dashboard) 的實際資料契約設計。它不是另一套任務系統，而是該系統提供給 DeskPet macOS App 的獨立 JSON API 邊界。
 
-## 建議架構
+## 為什麼必須使用獨立 Gateway
+
+`school-admin-daily-dashboard` 的 Web App 是管理台與電子紙看板，使用 Google／Workspace 登入、`ALLOWED_DOMAIN` 與使用者 CSRF Token 保護。DeskPet 的 `URLSession` 無法操作這種登入頁，也不應把管理台直接公開成「任何人」可存取。
+
+正確架構是：
 
 ```text
-DeskPet macOS App
-  │ HTTPS POST + API Token
+瀏覽器使用者
+  │ Google / Workspace 登入
   ▼
-獨立 DeskPet GAS Gateway
-  │ DESKPET_SPREADSHEET_ID（Script Property）
-  ▼
-你的既有 Google Spreadsheet
+school-admin-daily-dashboard Web App
+  │
+  ├───────────────┐
+  ▼               ▼
+任務清單等 Sheets   DeskPet 獨立 Gateway Web App
+                  ▲
+                  │ HTTPS POST + DESKPET_API_TOKEN
+                  │
+              DeskPet macOS App
 ```
 
-Gateway 建議維持為獨立 Apps Script 專案。原本的管理後台可繼續使用 Google 帳號或 Workspace 權限；DeskPet Gateway 則只處理 JSON API、Token 驗證與限定欄位的任務操作。
+兩個 Apps Script 專案操作同一份 Spreadsheet，但使用不同部署網址與不同授權邊界。不要把 Gateway 程式貼進 Dashboard 的 `Code.gs`；兩邊都有 Web App 入口，混在一起會造成 `doGet()` 衝突，也會模糊管理台與機器 API 的權限。
 
-## 最少整合步驟
+## 前置條件：先安裝 Dashboard
 
-1. 在 Apps Script 建立一個獨立專案。
+先依參考專案 README 完成安裝：
+
+1. 將 `Code.gs`、`Installer.html`、`Index.html`、`Board.html` 與 `appsscript.json` 安裝到綁定 Google Sheet 的 Apps Script 專案。
+2. 從「校務任務系統 → 安裝／選擇處室」選擇學校、處室與職務。
+3. 確認已建立：`任務清單`、`工作紀錄`、`系統設定`、`選項清單`。
+
+Dashboard 安裝時會把 Spreadsheet ID 寫入它自己的 Script Property：
+
+```text
+BOUND_SPREADSHEET_ID
+```
+
+這個 ID 也可以從試算表網址取得：
+
+```text
+https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit
+```
+
+## 建立獨立 DeskPet Gateway
+
+1. 建立一個新的「獨立」Apps Script 專案，例如 `DeskPet API Gateway`。
 2. 貼上 [`GAS/DeskPet_GAS_API_Gateway_v3.js`](../GAS/DeskPet_GAS_API_Gateway_v3.js)。
-3. 從你的 Spreadsheet 網址取得 ID：
-
-   ```text
-   https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit
-   ```
-
-4. 在 Apps Script 編輯器執行：
+3. 在 Gateway 專案的編輯器執行：
 
    ```javascript
-   configureDeskPetGateway('你的 SPREADSHEET_ID');
+   configureDeskPetGateway('從 Dashboard 取得的 BOUND_SPREADSHEET_ID');
    ```
 
-   這個函式會把 ID 寫入 Script Properties、建立或驗證必要工作表，並在尚未設定時產生 API Token。若 Spreadsheet 無法開啟或初始化失敗，原設定會自動還原。
+4. 函式會完成以下工作：
 
-5. 在 **Project Settings → Script Properties** 複製 `DESKPET_API_TOKEN`。
-6. 把 Gateway 部署成 Web App：執行身分選擇自己，存取方式需允許 DeskPet 的 HTTP client 直接 POST。
-7. 在 DeskPet「設定 → 總務工作台」填入 `/exec` 網址與 Token，啟用串接後按「測試連線」。
+   - 儲存 `DESKPET_SPREADSHEET_ID` 到 Gateway 的 Script Properties。
+   - 以唯讀方式驗證 Dashboard 的四張必要工作表。
+   - 驗證 `任務清單` 19 欄與 `工作紀錄` 7 欄資料契約。
+   - 讀取目前的學校、處室、職務與動態選項。
+   - 產生 `DESKPET_API_TOKEN`（若尚未存在）。
 
-不要把真實的 Spreadsheet ID、`/exec` 網址或 Token 寫回此 repository。
+Gateway 不會建立、遷移、清空或重新格式化 Dashboard 的工作表。如果契約不符，設定會失敗並還原原本的 Spreadsheet ID。
 
-## 預設工作表 contract
+5. 在 Gateway 的 **Project Settings → Script Properties** 複製 `DESKPET_API_TOKEN`。
+6. 將 Gateway 部署為 Web App：
 
-Gateway 預設使用三張工作表：
+   - Execute as：部署者
+   - Who has access：能讓 DeskPet 直接 POST 的模式；常見為 anyone，實際名稱依 Workspace 政策而異
 
-| 工作表 | 用途 |
-| --- | --- |
-| `任務清單` | 任務主資料、狀態與期限 |
-| `工作紀錄` | 建立與更新的 append-only 紀錄 |
-| `系統設定` | 預設負責人與 Email |
+Dashboard 管理台仍維持 Workspace 限制；只有獨立 Gateway 使用 Token 作為應用層授權。
 
-`任務清單` 需要以下欄位。既有工作表可以包含其他欄位，但這些欄名必須存在：
+## 設定 DeskPet
+
+在 DeskPet「設定 → 校務任務系統（Google Apps Script）」：
+
+1. 貼上 Gateway 的 `/exec` 網址。
+2. 貼上 `DESKPET_API_TOKEN`。
+3. 啟用串接。
+4. 按「測試連線」。
+
+連線成功後，DeskPet 會顯示嫁接到的學校、處室、職務與任務類型數量。Gateway 會回傳 integration metadata，DeskPet 的分類選單不再固定為總務處，而是直接使用 Dashboard `選項清單` 的目前 profile。
+
+## 與 Dashboard 對齊的資料契約
+
+Gateway 直接使用 Dashboard 的標準 19 欄：
 
 ```text
 任務ID、任務名稱、類型、狀態、優先級、截止日期、截止時間、
@@ -58,58 +94,67 @@ Gateway 預設使用三張工作表：
 看板顯示、顯示排序、詳細連結、建立時間、更新時間、完成時間、封存
 ```
 
-`工作紀錄` 需要：
+工作紀錄使用：
 
 ```text
 紀錄ID、任務ID、動作、變更前、變更後、操作者、時間
 ```
 
-空白 Spreadsheet 可由 `configureDeskPetGateway()` 自動建立這些結構；已有同名工作表時只會驗證欄位，不會默默覆寫既有資料。
+Gateway 從 `系統設定` 讀取：
 
-## DeskPet 與 Gateway 的固定 API contract
+- `SYSTEM_NAME`
+- `SCHOOL_NAME`
+- `OFFICE_KEY`、`OFFICE_NAME`
+- `ROLE_KEY`、`ROLE_NAME`
+- `DEFAULT_OWNER`、`DEFAULT_OWNER_EMAIL`
 
-macOS App 使用 API v3，支援四個 action：
+Gateway 從 `選項清單` 動態讀取：
 
-| Action | 用途 | 主要欄位 |
-| --- | --- | --- |
-| `ping` | 測試 Token 與部署 | `token` |
-| `createTask` | 建立任務 | `clientTaskId`、`rawText`、`task` |
-| `taskDigest` | 取得未封存任務摘要 | `limit` |
-| `updateTask` | 更新既有任務 | `taskId`、`update`、`reason` |
+- `類型`
+- `狀態`
+- `優先級`
+- `看板顯示`
 
-`clientTaskId` 是建立任務的冪等鍵。`updateTask` 只允許更新 `status`、`dueDate`、`dueTime`、`waitingFor`、`progress`，避免桌面代理人改寫任務名稱、分類或負責人等核心資料。
+因此參考專案切換處室後，不需要修改 Gateway 原始碼。回到 DeskPet 再按一次「測試連線」，即可立即刷新本機保存的 integration metadata；Ambient 摘要同步時也會自動更新。
 
-只要保留上述 request／response contract，你可以在 Gateway 內替換資料來源或欄位映射，而不必修改 macOS App。
+## API 與寫入邊界
 
-## 接到不同欄位結構的既有專案
+| Action | 行為 |
+| --- | --- |
+| `ping` | 驗證 Token、Dashboard 契約，回傳 integration metadata |
+| `createTask` | 使用 `clientTaskId` 冪等建立任務，分類與優先級依目前 `選項清單` 驗證 |
+| `taskDigest` | 讀取未封存任務與統計，並同步 integration metadata |
+| `updateTask` | 只允許狀態、期限、等待對象與最近進度 |
 
-如果你的工作表欄名不同，集中調整 Gateway 的這幾個區域：
+如果 DeskPet 傳來的分類已不在目前處室 profile，Gateway 會安全降級為 `其他`（若存在）或第一個合法分類，避免因切換處室讓建立任務完全失敗。
 
-- `GATEWAY_CONFIG`：工作表名稱與時區
-- `GATEWAY_TASK_HEADERS`、`GATEWAY_LOG_HEADERS`：必要欄位
-- `GATEWAY_OPTIONS`：類型、狀態、優先級與看板選項
-- `taskToRow_()`：API task 寫入工作表的映射
-- `rowArrayToTask_()`：工作表資料轉回 API task 的映射
-- `readDefaults_()`：讀取你專案的預設負責人設定
+## 處室切換流程
 
-保留 `verifyToken_()`、`constantTimeEquals_()`、`clientTaskId` 冪等處理、更新欄位 allow-list 與 public `doGet()` 不回傳任務資料等安全邊界。
+1. 在 Dashboard 再次執行「安裝／選擇處室」。
+2. Dashboard 更新 `系統設定` 與 `選項清單`，並保留既有任務使用過的舊分類。
+3. 在 DeskPet 設定頁按「測試連線」。
+4. 確認「已嫁接」摘要顯示新的處室／職務。
 
-## 若你的專案已有 Apps Script 後台
+不需要重新部署 Gateway，也不需要更換 Token 或 Spreadsheet ID。
 
-不要直接用需要 Google 登入的後台 Web App URL 當 DeskPet endpoint；URLSession 收到的通常會是 401、403 或登入 HTML。
+## DeskPet 行政職稱覆寫
 
-推薦做法是：
+DeskPet 預設把 integration metadata 的 `ROLE_NAME` 當成行政職稱。設定頁可建立本機覆寫，例如在不切換 Dashboard profile 的情況下，把 DeskPet 新建任務的負責人顯示為代理主任或自訂職稱。
 
-- 後台 Apps Script：維持原本的使用者登入與管理 UI。
-- DeskPet Gateway：獨立部署，只提供 JSON API。
-- 兩者：透過同一個 Spreadsheet ID 操作相同資料。
+本機覆寫具有以下邊界：
 
-這樣公開 API 的權限、Token 輪替與部署版本都能與管理後台分開管理。
+- 儲存在 DeskPet `UserDefaults`，不送回 Dashboard 系統設定。
+- 只套用到 DeskPet `createTask` request 的 `owner` 欄位。
+- 不修改 Dashboard 的 `OFFICE_KEY`、`ROLE_KEY`、`ROLE_NAME` 或 `DEFAULT_OWNER`。
+- 清除覆寫後立即恢復使用最新同步的 Dashboard `ROLE_NAME`。
 
-## 上線前檢查
+正式切換處室或職務仍應使用 Dashboard 的「安裝／選擇處室」，再回 DeskPet 測試連線以刷新 metadata。
 
-- `doGet()` 只回健康狀態，不回任務內容。
-- 真實 Token 只存在 Script Properties 與 macOS Keychain。
-- Gateway 使用新的獨立部署網址；舊 Token 若曾外流就先輪替。
-- 使用非正式資料測試 `ping`、建立、摘要與更新。
-- 確認 Workspace 政策允許 Web App 接受 DeskPet 的 POST。
+## 安全檢查
+
+- Dashboard Web App 維持 Workspace／網域限制。
+- Gateway `doGet()` 只回健康狀態，不回任務內容。
+- 所有任務 API 都必須通過 `DESKPET_API_TOKEN`。
+- 真實 Token 只存在 Gateway Script Properties 與 macOS Keychain。
+- Spreadsheet ID、Gateway `/exec` URL 與 Token 不得提交到公開 repository。
+- Token 若曾外流，執行 `resetDeskPetApiToken()` 並更新 DeskPet Keychain。

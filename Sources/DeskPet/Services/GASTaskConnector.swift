@@ -27,18 +27,18 @@ final class GASTaskConnector {
         var errorDescription: String? {
             switch self {
             case .disabled:
-                return "請先在設定中啟用總務工作台串接"
+                return "請先在設定中啟用校務任務系統串接"
             case .missingToken:
-                return "請先設定總務工作台 API Token"
+                return "請先設定校務任務系統 API Token"
             case .invalidEndpoint:
-                return "總務工作台 Web App 網址無效"
+                return "校務任務系統 Gateway 網址無效"
             case .invalidResponse:
-                return "總務工作台回傳格式無法辨識"
+                return "校務任務系統回傳格式無法辨識"
             case .httpStatus(let code):
                 if code == 401 || code == 403 {
                     return "Google Web App 在進入 DeskPet API 前拒絕請求（HTTP \(code)）。請改用獨立 DeskPet API Gateway，並將 Gateway 部署為『執行身分：我／存取：任何人』。"
                 }
-                return "總務工作台連線失敗（HTTP \(code)）"
+                return "校務任務系統連線失敗（HTTP \(code)）"
             case .api(let message):
                 return message
             }
@@ -67,6 +67,7 @@ final class GASTaskConnector {
         let dueDate: String
         let dueTime: String
         let nextAction: String
+        let owner: String
         let boardDisplay: String
         let sortOrder: Int
     }
@@ -90,6 +91,7 @@ final class GASTaskConnector {
         let summary: GASTaskDigest.Summary?
         let tasks: [GASTaskDigest.Task]?
         let serverTime: String?
+        let integration: GASTaskIntegrationMetadata?
     }
 
     private struct APIErrorPayload: Decodable {
@@ -121,7 +123,7 @@ final class GASTaskConnector {
                 reason: nil
             )
         )
-        return response.message ?? "總務工作台 API 連線成功"
+        return response.message ?? "校務任務系統 API 連線成功"
     }
 
     func fetchTaskDigest(limit: Int = 12) async throws -> GASTaskDigest {
@@ -161,12 +163,13 @@ final class GASTaskConnector {
 
         let payload = TaskPayload(
             name: title,
-            category: GASTaskTaxonomy.categories.contains(category) ? category : "其他",
+            category: configuration.categories.contains(category) ? category : configuration.defaultCategory,
             status: "未開始",
-            priority: GASTaskTaxonomy.priorities.contains(priority) ? priority : "中",
+            priority: configuration.priorities.contains(priority) ? priority : (configuration.priorities.first ?? "中"),
             dueDate: dueDate.map(formatter.string(from:)) ?? "",
             dueTime: dueDate.map(timeFormatter.string(from:)) ?? "",
             nextAction: originalText,
+            owner: configuration.administrativeTitle,
             boardDisplay: "自動",
             sortOrder: 9999
         )
@@ -290,7 +293,10 @@ final class GASTaskConnector {
         }
 
         guard decoded.ok else {
-            throw ConnectorError.api(decoded.error?.message ?? decoded.message ?? "總務工作台 API 回報失敗")
+            throw ConnectorError.api(decoded.error?.message ?? decoded.message ?? "校務任務系統 API 回報失敗")
+        }
+        if let integration = decoded.integration {
+            configuration.applyIntegrationMetadata(integration)
         }
         return decoded
     }

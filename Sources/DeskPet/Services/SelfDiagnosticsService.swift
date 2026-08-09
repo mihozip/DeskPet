@@ -43,6 +43,7 @@ final class SelfDiagnosticsService: ObservableObject {
         var result: [DiagnosticItem] = []
         result.append(appItem())
         result.append(assetItem())
+        result.append(updaterItem())
         result.append(inboxItem())
         result.append(workDiaryItem())
         result.append(hotKeyItem())
@@ -60,8 +61,9 @@ final class SelfDiagnosticsService: ObservableObject {
     }
 
     var reportText: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "未知"
         var lines = [
-            "DeskPet 0.9.1.1 — Self Diagnostics",
+            "DeskPet \(version) — Self Diagnostics",
             "Generated: \(Self.timestampFormatter.string(from: generatedAt))",
             "macOS: \(ProcessInfo.processInfo.operatingSystemVersionString)",
             "App path: \(Bundle.main.bundlePath)",
@@ -98,9 +100,18 @@ final class SelfDiagnosticsService: ObservableObject {
         }
         let missing = names.filter { !FileManager.default.fileExists(atPath: resourceURL.appendingPathComponent($0).path) }
         if missing.isEmpty {
-            return DiagnosticItem(id: "assets", title: "桌寵素材", detail: "4/4 自訂圖片可用", level: .ok)
+            return DiagnosticItem(id: "assets", title: "桌寵素材", detail: "4/4 預設圖片可用", level: .ok)
         }
-        return DiagnosticItem(id: "assets", title: "桌寵素材", detail: "未安裝自訂素材，使用 fallback：\(missing.joined(separator: ", "))", level: .warning)
+        return DiagnosticItem(id: "assets", title: "桌寵素材", detail: "預設素材缺漏，使用 fallback：\(missing.joined(separator: ", "))", level: .warning)
+    }
+
+    private func updaterItem() -> DiagnosticItem {
+        let updater = Bundle.main.url(forResource: "DeskPetUpdater", withExtension: "sh")
+        let version = Bundle.main.url(forResource: "VERSION", withExtension: nil)
+        if updater != nil, version != nil {
+            return DiagnosticItem(id: "updater", title: "軟體更新", detail: "更新程式與 VERSION 已包含於 App bundle", level: .ok)
+        }
+        return DiagnosticItem(id: "updater", title: "軟體更新", detail: "此安裝版本未包含內建更新程式；請使用 README 的舊版更新指令", level: .warning)
     }
 
     private func inboxItem() -> DiagnosticItem {
@@ -145,14 +156,14 @@ final class SelfDiagnosticsService: ObservableObject {
 
     private func gasItem() -> DiagnosticItem {
         if !gasConfiguration.isEnabled {
-            return DiagnosticItem(id: "gas", title: "總務工作台", detail: "未啟用", level: .warning)
+            return DiagnosticItem(id: "gas", title: "校務任務系統", detail: "未啟用", level: .warning)
         }
         let endpointOK = gasConfiguration.endpointURL != nil
         let tokenOK = gasConfiguration.hasAPIToken
         if endpointOK && tokenOK {
-            return DiagnosticItem(id: "gas", title: "總務工作台", detail: "Gateway URL 與 Token 已設定", level: .ok)
+            return DiagnosticItem(id: "gas", title: "校務任務系統", detail: "Gateway URL 與 Token 已設定", level: .ok)
         }
-        return DiagnosticItem(id: "gas", title: "總務工作台", detail: "Gateway URL 或 Token 尚未完整設定", level: .warning)
+        return DiagnosticItem(id: "gas", title: "校務任務系統", detail: "Gateway URL 或 Token 尚未完整設定", level: .warning)
     }
 
     private func ambientItem() -> DiagnosticItem {

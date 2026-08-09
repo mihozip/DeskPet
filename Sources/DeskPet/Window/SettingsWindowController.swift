@@ -15,6 +15,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         ambientMonitor: GASTaskAmbientMonitor,
         dailyPreferences: DailyUsePreferencesStore,
         launchAtLogin: LaunchAtLoginService,
+        softwareUpdate: SoftwareUpdateService,
         diagnostics: SelfDiagnosticsService
     ) {
         self.actionService = actionService
@@ -28,6 +29,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             ambientMonitor: ambientMonitor,
             dailyPreferences: dailyPreferences,
             launchAtLogin: launchAtLogin,
+            softwareUpdate: softwareUpdate,
             diagnostics: diagnostics
         )
         self.viewModel = viewModel

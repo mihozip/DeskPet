@@ -64,7 +64,7 @@ enum WorkEventSource: String, Codable {
     var displayName: String {
         switch self {
         case .deskPet: return "DeskPet"
-        case .gas: return "總務工作台"
+        case .gas: return "校務任務系統"
         case .calendar: return "Calendar"
         case .reminders: return "Reminders"
         case .manual: return "手動補充"

@@ -33,5 +33,6 @@ DeskPet relies on several explicit boundaries:
 - Google Apps Script is not a high-throughput API gateway and is subject to Google quotas.
 - User-entered task text may contain confidential information. Enabling Gemini can transmit selected text to an external API.
 - Ad-hoc signed builds are for local testing only. Public binary distribution should use Developer ID, Hardened Runtime and Apple notarization.
+- Source updates trust the public `mihozip/DeskPet` main branch and the local Apple Swift toolchain. Review the downloaded updater in managed environments and keep the GitHub account protected with strong authentication.
 
 A lightweight repository threat model is maintained at [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md).

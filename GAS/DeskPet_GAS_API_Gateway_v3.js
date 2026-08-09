@@ -6,7 +6,8 @@
  * - 管理台 Web App 繼續維持原本 Workspace / Google 登入保護。
  * - 本 Gateway 單獨部署成「執行身分：我」「誰可以存取：任何人」。
  * - Gateway 不提供管理頁，只接受 JSON API，並以 DESKPET_API_TOKEN 驗證。
- * - 寫入使用者在 Script Properties 指定的試算表。
+ * - 附掛到已完成 school-admin-daily-dashboard 安裝的試算表。
+ * - 不建立、不遷移、不覆寫 Dashboard 工作表結構。
  */
 
 const GATEWAY_CONFIG = Object.freeze({
@@ -14,7 +15,9 @@ const GATEWAY_CONFIG = Object.freeze({
   TASK_SHEET: '任務清單',
   LOG_SHEET: '工作紀錄',
   SETTINGS_SHEET: '系統設定',
+  OPTIONS_SHEET: '選項清單',
   API_VERSION: '3',
+  DASHBOARD_SCHEMA: 'school-admin-daily-dashboard/v1',
 });
 
 const GATEWAY_TASK_HEADERS = Object.freeze([
@@ -27,8 +30,8 @@ const GATEWAY_LOG_HEADERS = Object.freeze([
   '紀錄ID', '任務ID', '動作', '變更前', '變更後', '操作者', '時間',
 ]);
 
-const GATEWAY_OPTIONS = Object.freeze({
-  category: ['修繕', '採購', '財產', '場地', '午餐', '工程', '防災', '文書', '會議', '其他'],
+const GATEWAY_FALLBACK_OPTIONS = Object.freeze({
+  category: ['其他'],
   status: ['未開始', '進行中', '等待他人', '待確認', '已完成', '暫停', '取消'],
   priority: ['高', '中', '低'],
   boardDisplay: ['自動', '強制顯示', '隱藏'],
@@ -80,10 +83,13 @@ function doPost(e) {
 
     switch (String(request.action || '').trim()) {
       case 'ping':
+        const pingSpreadsheet = openSpreadsheet_();
+        const integration = validateDashboardContract_(pingSpreadsheet);
         return jsonResponse_({
           ok: true,
-          message: 'DeskPet API Gateway v3 連線成功',
+          message: 'DeskPet 已連上校務行政每日任務管理系統',
           apiVersion: GATEWAY_CONFIG.API_VERSION,
+          integration,
           serverTime: formatDateTime_(new Date()),
         });
 
@@ -111,7 +117,7 @@ function doPost(e) {
 }
 
 /**
- * 儲存目標 Spreadsheet ID，並初始化 / 驗證 Gateway 所需工作表。
+ * 儲存目標 Spreadsheet ID，並驗證 school-admin-daily-dashboard 契約。
  * 若初始化失敗，會還原原本設定，避免留下無法使用的 ID。
  */
 function configureDeskPetGateway(spreadsheetId) {
@@ -142,10 +148,7 @@ function configureDeskPetGateway(spreadsheetId) {
  */
 function initializeDeskPetGateway() {
   const ss = openSpreadsheet_();
-  ensureGatewaySheet_(ss, GATEWAY_CONFIG.TASK_SHEET, GATEWAY_TASK_HEADERS);
-  ensureGatewaySheet_(ss, GATEWAY_CONFIG.LOG_SHEET, GATEWAY_LOG_HEADERS);
-  ensureSettingsSheet_(ss);
-  validateTaskHeaders_();
+  const integration = validateDashboardContract_(ss);
 
   const props = PropertiesService.getScriptProperties();
   let token = String(props.getProperty('DESKPET_API_TOKEN') || '').trim();
@@ -159,6 +162,7 @@ function initializeDeskPetGateway() {
     spreadsheetConfigured: true,
     tokenConfigured: Boolean(token),
     apiVersion: GATEWAY_CONFIG.API_VERSION,
+    integration,
   };
 }
 
@@ -172,10 +176,23 @@ function resetDeskPetApiToken() {
 /** 回傳 Gateway 設定狀態，不輸出秘密值。 */
 function getDeskPetGatewayStatus() {
   const props = PropertiesService.getScriptProperties();
+  const spreadsheetConfigured = Boolean(String(props.getProperty('DESKPET_SPREADSHEET_ID') || '').trim());
+  let integration = null;
+  let validationError = '';
+  if (spreadsheetConfigured) {
+    try {
+      integration = validateDashboardContract_(openSpreadsheet_());
+    } catch (error) {
+      validationError = error && error.message ? String(error.message) : String(error);
+    }
+  }
   return {
-    spreadsheetConfigured: Boolean(String(props.getProperty('DESKPET_SPREADSHEET_ID') || '').trim()),
+    spreadsheetConfigured,
+    dashboardContractValid: Boolean(integration),
     tokenConfigured: Boolean(String(props.getProperty('DESKPET_API_TOKEN') || '').trim()),
     apiVersion: GATEWAY_CONFIG.API_VERSION,
+    integration,
+    validationError,
   };
 }
 
@@ -196,6 +213,7 @@ function createTask_(request) {
     const taskSheet = requireSheet_(ss, GATEWAY_CONFIG.TASK_SHEET);
     const headerMap = headerMap_(taskSheet);
     assertRequiredHeaders_(headerMap);
+    const optionLists = readDashboardOptionLists_(ss);
 
     const existingRow = findTaskRowById_(taskSheet, headerMap, taskId);
     if (existingRow) {
@@ -228,7 +246,11 @@ function createTask_(request) {
       detailUrl: incoming.detailUrl,
     });
     data.taskId = taskId;
-    validateTask_(data);
+    data.category = allowedValueOrFallback_(data.category, optionLists.category, '其他');
+    data.status = allowedValueOrFallback_(data.status, optionLists.status, '未開始');
+    data.priority = allowedValueOrFallback_(data.priority, optionLists.priority, '中');
+    data.boardDisplay = allowedValueOrFallback_(data.boardDisplay, optionLists.boardDisplay, '自動');
+    validateTask_(data, optionLists);
 
     const now = new Date();
     data.createdAt = now;
@@ -247,7 +269,7 @@ function createTask_(request) {
 
     return {
       ok: true,
-      message: '任務已加入總務工作台',
+      message: '任務已加入校務行政每日任務系統',
       created: true,
       duplicate: false,
       task: after,
@@ -286,6 +308,7 @@ function updateTask_(request) {
     const sheet = requireSheet_(ss, GATEWAY_CONFIG.TASK_SHEET);
     const headerMap = headerMap_(sheet);
     assertRequiredHeaders_(headerMap);
+    const optionLists = readDashboardOptionLists_(ss);
 
     const rowNumber = findTaskRowById_(sheet, headerMap, taskId);
     if (!rowNumber) throw apiError_('TASK_NOT_FOUND', '找不到指定任務。');
@@ -297,7 +320,7 @@ function updateTask_(request) {
 
     if (Object.prototype.hasOwnProperty.call(incoming, 'status')) {
       const value = cleanText_(incoming.status, 30);
-      if (!GATEWAY_OPTIONS.status.includes(value)) throw apiError_('INVALID_STATUS', '任務狀態不在允許清單中。');
+      if (!optionLists.status.includes(value)) throw apiError_('INVALID_STATUS', '任務狀態不在 Dashboard 選項清單中。');
       sheet.getRange(rowNumber, headerMap['狀態']).setValue(value);
       sheet.getRange(rowNumber, headerMap['完成時間']).setValue(value === '已完成' ? now : '');
     }
@@ -379,6 +402,7 @@ function buildTaskDigest_(request) {
       waiting: decorated.filter(task => task.flags.includes('waiting')).length,
     },
     tasks: decorated.slice(0, limit),
+    integration: buildIntegrationMetadata_(ss),
     serverTime: formatDateTime_(new Date()),
   };
 }
@@ -462,26 +486,29 @@ function normalizeTask_(task) {
   };
 }
 
-function validateTask_(task) {
+function validateTask_(task, optionLists) {
   if (!task.name) throw apiError_('INVALID_TASK', '請填寫任務名稱。');
-  if (!GATEWAY_OPTIONS.category.includes(task.category)) throw apiError_('INVALID_CATEGORY', '任務類型不在允許清單中。');
-  if (!GATEWAY_OPTIONS.status.includes(task.status)) throw apiError_('INVALID_STATUS', '任務狀態不在允許清單中。');
-  if (!GATEWAY_OPTIONS.priority.includes(task.priority)) throw apiError_('INVALID_PRIORITY', '優先級不在允許清單中。');
-  if (!GATEWAY_OPTIONS.boardDisplay.includes(task.boardDisplay)) throw apiError_('INVALID_BOARD_DISPLAY', '看板顯示設定無效。');
+  if (!optionLists.category.includes(task.category)) throw apiError_('INVALID_CATEGORY', '任務類型不在 Dashboard 選項清單中。');
+  if (!optionLists.status.includes(task.status)) throw apiError_('INVALID_STATUS', '任務狀態不在 Dashboard 選項清單中。');
+  if (!optionLists.priority.includes(task.priority)) throw apiError_('INVALID_PRIORITY', '優先級不在 Dashboard 選項清單中。');
+  if (!optionLists.boardDisplay.includes(task.boardDisplay)) throw apiError_('INVALID_BOARD_DISPLAY', '看板顯示設定無效。');
   if (task.ownerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(task.ownerEmail)) {
     throw apiError_('INVALID_EMAIL', '負責人 Email 格式不正確。');
   }
 }
 
 function readDefaults_(ss) {
-  const result = { DEFAULT_OWNER: '總務主任', DEFAULT_OWNER_EMAIL: '' };
-  const sheet = ss.getSheetByName(GATEWAY_CONFIG.SETTINGS_SHEET);
-  if (!sheet || sheet.getLastRow() < 2) return result;
-  sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getDisplayValues().forEach(row => {
-    const key = String(row[0] || '').trim();
-    if (key === 'DEFAULT_OWNER' || key === 'DEFAULT_OWNER_EMAIL') result[key] = String(row[1] || '').trim();
-  });
-  return result;
+  const settings = readDashboardSettings_(ss);
+  return {
+    DEFAULT_OWNER: settings.DEFAULT_OWNER || settings.ROLE_NAME || '',
+    DEFAULT_OWNER_EMAIL: settings.DEFAULT_OWNER_EMAIL || '',
+  };
+}
+
+function allowedValueOrFallback_(value, allowed, preferred) {
+  if (allowed.includes(value)) return value;
+  if (allowed.includes(preferred)) return preferred;
+  return allowed[0] || preferred;
 }
 
 function taskToRow_(task, headerMap) {
@@ -583,54 +610,95 @@ function openSpreadsheet_() {
   return SpreadsheetApp.openById(configuredSpreadsheetId_());
 }
 
-function ensureGatewaySheet_(ss, name, headers) {
-  let sheet = ss.getSheetByName(name);
-  if (!sheet) sheet = ss.insertSheet(name);
-
-  if (sheet.getLastRow() === 0) {
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    sheet.setFrozenRows(1);
-    return sheet;
-  }
-
-  const existing = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1))
-    .getDisplayValues()[0]
-    .map(value => String(value || '').trim());
-  const missing = headers.filter(header => !existing.includes(header));
-  if (missing.length) {
-    throw apiError_('MISSING_HEADERS', `工作表「${name}」缺少欄位：${missing.join('、')}`);
-  }
-  return sheet;
-}
-
-function ensureSettingsSheet_(ss) {
-  let sheet = ss.getSheetByName(GATEWAY_CONFIG.SETTINGS_SHEET);
-  if (!sheet) {
-    sheet = ss.insertSheet(GATEWAY_CONFIG.SETTINGS_SHEET);
-    sheet.getRange(1, 1, 1, 3).setValues([['設定鍵', '設定值', '說明']]);
-    sheet.getRange(2, 1, 2, 3).setValues([
-      ['DEFAULT_OWNER', '總務主任', 'DeskPet 建立任務時的預設負責人'],
-      ['DEFAULT_OWNER_EMAIL', '', '可選；預設負責人 Email'],
-    ]);
-    sheet.setFrozenRows(1);
-  }
-  return sheet;
-}
-
 function requireSheet_(ss, name) {
   const sheet = ss.getSheetByName(name);
-  if (!sheet) throw apiError_('MISSING_SHEET', `找不到工作表「${name}」。`);
+  if (!sheet) throw apiError_('DASHBOARD_NOT_INSTALLED', `找不到工作表「${name}」。請先依 school-admin-daily-dashboard README 完成安裝。`);
   return sheet;
 }
 
-function validateTaskHeaders_() {
-  const sheet = requireSheet_(openSpreadsheet_(), GATEWAY_CONFIG.TASK_SHEET);
-  assertRequiredHeaders_(headerMap_(sheet));
+function validateDashboardContract_(ss) {
+  const taskSheet = requireSheet_(ss, GATEWAY_CONFIG.TASK_SHEET);
+  const logSheet = requireSheet_(ss, GATEWAY_CONFIG.LOG_SHEET);
+  const settingsSheet = requireSheet_(ss, GATEWAY_CONFIG.SETTINGS_SHEET);
+  const optionsSheet = requireSheet_(ss, GATEWAY_CONFIG.OPTIONS_SHEET);
+  assertHeaders_(taskSheet, GATEWAY_TASK_HEADERS);
+  assertHeaders_(logSheet, GATEWAY_LOG_HEADERS);
+  assertHeaders_(settingsSheet, ['設定項目', '設定值']);
+  assertHeaders_(optionsSheet, ['類型', '狀態', '優先級', '看板顯示']);
+  const settings = readDashboardSettings_(ss);
+  const missingSettings = ['SYSTEM_NAME', 'OFFICE_KEY', 'OFFICE_NAME', 'ROLE_KEY', 'ROLE_NAME']
+    .filter(key => !(key in settings));
+  if (missingSettings.length) {
+    throw apiError_('DASHBOARD_SETTINGS_MISMATCH', '系統設定缺少項目：' + missingSettings.join('、'));
+  }
+  return buildIntegrationMetadata_(ss);
 }
 
 function assertRequiredHeaders_(headerMap) {
   const missing = GATEWAY_TASK_HEADERS.filter(header => !headerMap[header]);
   if (missing.length) throw apiError_('MISSING_HEADERS', '任務清單缺少欄位：' + missing.join('、'));
+}
+
+function assertHeaders_(sheet, requiredHeaders) {
+  const map = headerMap_(sheet);
+  const missing = requiredHeaders.filter(header => !map[header]);
+  if (missing.length) {
+    throw apiError_('DASHBOARD_SCHEMA_MISMATCH', `工作表「${sheet.getName()}」缺少欄位：${missing.join('、')}`);
+  }
+}
+
+function readDashboardSettings_(ss) {
+  const sheet = requireSheet_(ss, GATEWAY_CONFIG.SETTINGS_SHEET);
+  const result = {};
+  if (sheet.getLastRow() < 2) return result;
+  sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getDisplayValues().forEach(row => {
+    const key = String(row[0] || '').trim();
+    if (key) result[key] = String(row[1] || '').trim();
+  });
+  return result;
+}
+
+function readDashboardOptionLists_(ss) {
+  const sheet = requireSheet_(ss, GATEWAY_CONFIG.OPTIONS_SHEET);
+  if (sheet.getLastRow() < 2 || sheet.getLastColumn() < 1) {
+    throw apiError_('DASHBOARD_OPTIONS_EMPTY', '選項清單尚未建立，請先在 Dashboard 執行安裝或重新套用工作表格式。');
+  }
+
+  const values = sheet.getDataRange().getDisplayValues();
+  const headers = values[0].map(value => String(value || '').trim());
+  const readColumn = (header, fallback) => {
+    const index = headers.indexOf(header);
+    if (index < 0) return [...fallback];
+    const items = values.slice(1)
+      .map(row => String(row[index] || '').trim())
+      .filter(Boolean);
+    return items.length ? [...new Set(items)] : [...fallback];
+  };
+
+  return {
+    category: readColumn('類型', GATEWAY_FALLBACK_OPTIONS.category),
+    status: readColumn('狀態', GATEWAY_FALLBACK_OPTIONS.status),
+    priority: readColumn('優先級', GATEWAY_FALLBACK_OPTIONS.priority),
+    boardDisplay: readColumn('看板顯示', GATEWAY_FALLBACK_OPTIONS.boardDisplay),
+  };
+}
+
+function buildIntegrationMetadata_(ss) {
+  const settings = readDashboardSettings_(ss);
+  const options = readDashboardOptionLists_(ss);
+  return {
+    schema: GATEWAY_CONFIG.DASHBOARD_SCHEMA,
+    systemName: settings.SYSTEM_NAME || '校務行政每日任務管理系統',
+    schoolName: settings.SCHOOL_NAME || '',
+    officeKey: settings.OFFICE_KEY || '',
+    officeName: settings.OFFICE_NAME || '',
+    roleKey: settings.ROLE_KEY || '',
+    roleName: settings.ROLE_NAME || '',
+    categories: options.category,
+    statuses: options.status,
+    priorities: options.priority,
+    boardDisplayOptions: options.boardDisplay,
+  };
 }
 
 function headerMap_(sheet) {

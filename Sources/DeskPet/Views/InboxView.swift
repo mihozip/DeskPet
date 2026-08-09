@@ -167,7 +167,7 @@ struct InboxView: View {
             Image(systemName: "arrow.triangle.branch")
                 .font(.title3)
                 .foregroundStyle(.green)
-                .help("這筆 Inbox 已轉成總務工作台任務")
+                .help("這筆 Inbox 已轉成校務任務系統任務")
         } else {
             Button {
                 store.toggleDone(id: item.id)

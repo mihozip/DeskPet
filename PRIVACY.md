@@ -13,6 +13,8 @@ DeskPet stores its working data under the current macOS user account:
 
 Preferences such as pet size, animation intensity, shortcut preset, Gemini model selection and GAS polling settings use macOS `UserDefaults`.
 
+The non-secret Dashboard integration metadata and an optional local administrative-title override also use `UserDefaults`.
+
 ## Keychain secrets
 
 The following values are stored in macOS Keychain rather than source code or JSON data files:
@@ -51,3 +53,7 @@ Before posting a public bug report, remove:
 - Spreadsheet IDs
 - names, emails, schools or organizations
 - Inbox / Diary content containing personal or work-confidential information
+
+## Software updates
+
+DeskPet checks the public GitHub repository `VERSION` file at most once per day and when the user requests a manual check. This request does not include Inbox, Diary, Calendar, Reminder, GAS task or credential content. Installing an update downloads the public source archive and writes progress to `~/Library/Logs/DeskPet/update.log`; the log must not contain Keychain secrets.

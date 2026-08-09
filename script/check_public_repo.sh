@@ -7,6 +7,21 @@ status=0
 
 echo "DeskPet public-repository checks"
 
+VERSION="$(tr -d '[:space:]' < VERSION)"
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "ERROR: VERSION must use four numeric components"
+  status=1
+else
+  echo "  ✓ VERSION format: $VERSION"
+fi
+
+if ! bash -n script/install_or_update.sh || ! grep -q 'DESKPET_STANDALONE_UPDATER=1' script/install_or_update.sh; then
+  echo "ERROR: standalone updater syntax or marker is invalid"
+  status=1
+else
+  echo "  ✓ Standalone updater syntax and marker"
+fi
+
 check_pattern() {
   local label="$1"
   local regex="$2"
@@ -38,8 +53,29 @@ else
   echo "  ✓ No signing/private key files"
 fi
 
-if find Sources/DeskPet/Resources -maxdepth 1 -name 'pet_*.png' -print | grep -q .; then
-  echo "WARN: pet PNG files are present. Confirm redistribution rights before public push."
+PET_ASSETS=(pet_idle.png pet_listening.png pet_success.png pet_sleep.png)
+for asset in "${PET_ASSETS[@]}"; do
+  path="Sources/DeskPet/Resources/$asset"
+  if [[ ! -s "$path" ]]; then
+    echo "ERROR: default pet asset is missing or empty: $asset"
+    status=1
+    continue
+  fi
+  if command -v sips >/dev/null 2>&1; then
+    width="$(sips -g pixelWidth "$path" 2>/dev/null | awk '/pixelWidth/ { print $2 }')"
+    height="$(sips -g pixelHeight "$path" 2>/dev/null | awk '/pixelHeight/ { print $2 }')"
+    if [[ "$width" != "512" || "$height" != "512" ]]; then
+      echo "ERROR: $asset must be 512x512 (found ${width:-?}x${height:-?})"
+      status=1
+    fi
+  fi
+done
+
+if [[ ! -s "ASSETS.md" ]]; then
+  echo "ERROR: ASSETS.md is required when default artwork is distributed"
+  status=1
+else
+  echo "  ✓ Default pet assets and provenance notes"
 fi
 
 if [[ "$status" -ne 0 ]]; then

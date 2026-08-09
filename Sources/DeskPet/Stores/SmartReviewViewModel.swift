@@ -65,8 +65,14 @@ final class SmartReviewViewModel: ObservableObject {
         confidence = interpretation.confidence
         explanation = interpretation.explanation
         source = interpretation.source
-        gasCategory = interpretation.taskCategory ?? GASTaskTaxonomy.inferredCategory(from: item.text)
-        gasPriority = interpretation.taskPriority ?? GASTaskTaxonomy.inferredPriority(from: item.text)
+        let inferredCategory = interpretation.taskCategory ?? GASTaskTaxonomy.inferredCategory(from: item.text)
+        gasCategory = gasConfiguration.categories.contains(inferredCategory)
+            ? inferredCategory
+            : gasConfiguration.defaultCategory
+        let inferredPriority = interpretation.taskPriority ?? GASTaskTaxonomy.inferredPriority(from: item.text)
+        gasPriority = gasConfiguration.priorities.contains(inferredPriority)
+            ? inferredPriority
+            : (gasConfiguration.priorities.first ?? "中")
 
         if !item.actionReceipts.isEmpty {
             actionStatusMessage = "已建立：" + item.actionReceipts.map { $0.kind.displayName }.joined(separator: "、")
@@ -91,8 +97,8 @@ final class SmartReviewViewModel: ObservableObject {
 
     var canUseAI: Bool { aiConfiguration.canUseAI && actionReceipts.isEmpty }
     var isLockedAfterAction: Bool { !actionReceipts.isEmpty }
-    var gasCategories: [String] { GASTaskTaxonomy.categories }
-    var gasPriorities: [String] { GASTaskTaxonomy.priorities }
+    var gasCategories: [String] { gasConfiguration.categories }
+    var gasPriorities: [String] { gasConfiguration.priorities }
     var canUseGASConnector: Bool { gasConfiguration.canUseConnector }
 
     func hasReceipt(_ kind: DeskPetActionKind) -> Bool {
@@ -116,7 +122,7 @@ final class SmartReviewViewModel: ObservableObject {
         case .note:
             return "一般記事只保留在 Inbox，不會建立外部動作。"
         case .task:
-            return "待辦可分別送到總務工作台與 Apple Reminders；兩邊都有獨立 Action Receipt，因此不會因重按而重複建立。"
+            return "待辦可分別送到校務任務系統與 Apple Reminders；兩邊都有獨立 Action Receipt，因此不會因重按而重複建立。"
         case .event:
             return hasTargetDate ? "行程可建立為 1 小時的 Apple Calendar 事件。" : "請先指定行程日期與時間。"
         }
@@ -192,7 +198,7 @@ final class SmartReviewViewModel: ObservableObject {
     func createGASTask() async {
         guard canCreateGASTask else {
             if !gasConfiguration.canUseConnector {
-                actionStatusMessage = "請先到設定完成總務工作台網址、Token 並啟用串接。"
+                actionStatusMessage = "請先到設定完成校務任務系統 Gateway 網址、Token 並啟用串接。"
             }
             return
         }
@@ -281,7 +287,7 @@ final class SmartReviewViewModel: ObservableObject {
     }
 
     private func createGASTaskWithoutDuplicateCheck() async {
-        await performAction("正在加入總務工作台…") {
+        await performAction("正在加入校務任務系統…") {
             try await gasConnector.createTask(
                 clientTaskID: itemID,
                 title: finalTitle,

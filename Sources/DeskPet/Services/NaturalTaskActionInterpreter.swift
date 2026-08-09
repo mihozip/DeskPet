@@ -11,7 +11,7 @@ struct NaturalTaskActionInterpreter {
         var errorDescription: String? {
             switch self {
             case .emptyCommand: return "請先輸入一句描述，例如：冷氣廠商回覆了。"
-            case .noTasks: return "目前還沒有可操作的總務任務，請先同步總務工作台。"
+            case .noTasks: return "目前還沒有可操作的校務任務，請先同步校務任務系統。"
             case .couldNotInferAction: return "暫時看不出是要完成、收到回覆，還是延期。"
             case .couldNotMatchTask: return "找不到最適合的任務，請在句子中放入更明確的任務名稱。"
             case .missingDateForPostpone: return "有辨識到延期，但沒有找到新的日期時間。"
