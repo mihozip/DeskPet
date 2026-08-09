@@ -9,7 +9,7 @@
 
 DeskPet 是一隻住在 macOS 桌面的工作代理人。它把快速記事、規則或 Gemini 理解、人工確認、Calendar／Reminders／GAS 任務執行，以及每日工作日誌串成同一條可追蹤的工作流。
 
-**目前版本：0.9.2.0 — School Admin Update（pre-1.0 / RC）**
+**目前版本：0.9.2.1 — School Admin Update Hotfix（pre-1.0 / RC）**
 
 DeskPet 是以 Swift / SwiftUI / AppKit 開發的 macOS 桌面工具。它不是要取代既有的任務系統，而是提供一個隨手可用的桌面入口，把零散資訊轉成可追蹤的工作。
 

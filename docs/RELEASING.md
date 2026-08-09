@@ -42,6 +42,6 @@ swift package dump-package >/dev/null
 Then run the macOS CI build, update `CHANGELOG.md`, and tag using semantic versioning, for example:
 
 ```bash
-git tag -a v0.9.2.0 -m "DeskPet 0.9.2.0"
-git push origin v0.9.2.0
+git tag -a v0.9.2.1 -m "DeskPet 0.9.2.1"
+git push origin v0.9.2.1
 ```

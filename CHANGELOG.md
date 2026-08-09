@@ -2,6 +2,13 @@
 
 All notable changes to DeskPet are documented here. The project is pre-1.0, so interfaces and stored-data formats may still evolve.
 
+## [0.9.2.1] - 2026-08
+
+### Fixed
+- Braced the updater version variable so the macOS system Bash does not treat adjacent Unicode punctuation as part of the variable name under `set -u`.
+- Made the four bundled pet images required build inputs instead of silently falling back when packaging is incomplete.
+- Extended CI to build the `.app` bundle and verify all four default images are present.
+
 ## [0.9.2.0] - 2026-08
 
 ### Changed

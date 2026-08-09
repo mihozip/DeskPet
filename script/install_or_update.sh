@@ -128,7 +128,7 @@ if [[ -f "$DESTINATION/Contents/Info.plist" ]]; then
   PRESERVED_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$DESTINATION/Contents/Info.plist" 2>/dev/null || true)"
 fi
 
-echo "Building DeskPet $LATEST_VERSION…"
+echo "Building DeskPet ${LATEST_VERSION}…"
 if [[ -n "$PRESERVED_BUNDLE_ID" ]]; then
   BUNDLE_ID="$PRESERVED_BUNDLE_ID" "$PROJECT_DIR/script/build_release.sh"
 else
@@ -157,4 +157,4 @@ if [[ "$SHOULD_LAUNCH" -eq 1 ]]; then
   /usr/bin/open -n "$DESTINATION"
 fi
 
-echo "DeskPet $LATEST_VERSION installed successfully: $DESTINATION"
+echo "DeskPet ${LATEST_VERSION} installed successfully: $DESTINATION"
