@@ -9,7 +9,7 @@
 
 DeskPet is a macOS desktop work agent built with Swift, SwiftUI and AppKit. It connects quick capture, optional Gemini interpretation, human confirmation, Calendar / Reminders / Google Apps Script task actions, ambient monitoring, duplicate detection and a local work-event diary.
 
-Current version: **0.9.5.0 — Visible Update Progress (pre-1.0 / RC)**.
+Current version: **0.9.5.1 — Custom App Icon (pre-1.0 / RC)**.
 
 ## Quick start
 

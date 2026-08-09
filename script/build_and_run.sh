@@ -6,7 +6,7 @@ PRODUCT_NAME="DeskPet"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUNDLE_ID="${BUNDLE_ID:-tw.mihozip.deskpet}"
 VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
-BUILD_NUMBER="950"
+BUILD_NUMBER="951"
 DIST_DIR="$ROOT_DIR/dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 CONTENTS="$APP_BUNDLE/Contents"
@@ -49,6 +49,14 @@ for asset in "${PET_ASSETS[@]}"; do
     /usr/bin/xattr -c "$dst" 2>/dev/null || true
 done
 
+APP_ICON_SRC="$PET_RESOURCE_SRC/AppIcon.icns"
+[[ -s "$APP_ICON_SRC" ]] || {
+    echo "ERROR: required app icon is missing or empty: $APP_ICON_SRC" >&2
+    exit 1
+}
+cp "$APP_ICON_SRC" "$RESOURCES_DIR/AppIcon.icns"
+/usr/bin/xattr -c "$RESOURCES_DIR/AppIcon.icns" 2>/dev/null || true
+
 cp "$ROOT_DIR/VERSION" "$RESOURCES_DIR/VERSION"
 cp "$ROOT_DIR/script/install_or_update.sh" "$RESOURCES_DIR/DeskPetUpdater.sh"
 chmod +x "$RESOURCES_DIR/DeskPetUpdater.sh"
@@ -62,6 +70,7 @@ cat > "$CONTENTS/Info.plist" <<PLIST
     <key>CFBundleExecutable</key><string>$APP_NAME</string>
     <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+    <key>CFBundleIconFile</key><string>AppIcon.icns</string>
     <key>CFBundleName</key><string>$APP_NAME</string>
     <key>CFBundleDisplayName</key><string>$APP_NAME</string>
     <key>CFBundlePackageType</key><string>APPL</string>
@@ -92,6 +101,7 @@ for asset in "${PET_ASSETS[@]}"; do
         echo "  - $asset not bundled (fallback UI)"
     fi
 done
+echo "  ✓ $RESOURCES_DIR/AppIcon.icns"
 
 if [[ "${DESKPET_SKIP_LAUNCH:-0}" == "1" ]]; then
     echo "Packaged without launching: $APP_BUNDLE"

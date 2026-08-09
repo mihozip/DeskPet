@@ -42,6 +42,9 @@ jobs:
       - name: Validate administrative-title UI
         run: ./tests/administrative_title_ui.test.sh
 
+      - name: Validate app icon
+        run: ./tests/app_icon_contract.test.sh
+
       - name: Validate package manifest
         run: swift package dump-package >/dev/null
 
@@ -52,3 +55,5 @@ jobs:
           test -s dist/DeskPet.app/Contents/Resources/pet_listening.png
           test -s dist/DeskPet.app/Contents/Resources/pet_success.png
           test -s dist/DeskPet.app/Contents/Resources/pet_sleep.png
+          test -s dist/DeskPet.app/Contents/Resources/AppIcon.icns
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' dist/DeskPet.app/Contents/Info.plist)" = "AppIcon.icns"

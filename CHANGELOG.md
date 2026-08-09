@@ -2,6 +2,12 @@
 
 All notable changes to DeskPet are documented here. The project is pre-1.0, so interfaces and stored-data formats may still evolve.
 
+## [0.9.5.1] - 2026-08
+
+### Added
+- Added the maintainer-supplied white DeskPet assistant artwork as the macOS application icon.
+- Added deterministic multi-resolution ICNS packaging and CI verification for the source image, bundle resource and `CFBundleIconFile` metadata.
+
 ## [0.9.5.0] - 2026-08
 
 ### Added
