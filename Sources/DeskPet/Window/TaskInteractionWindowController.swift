@@ -8,7 +8,7 @@ final class TaskInteractionWindowController: NSWindowController, NSWindowDelegat
     private let gasConfiguration: GASTaskConfigurationStore
     private let monitor: GASTaskAmbientMonitor
     private let workEventStore: WorkEventStore
-    private var roleNameCancellable: AnyCancellable?
+    private var administrativeTitleCancellable: AnyCancellable?
 
     init(
         connector: GASTaskConnector,
@@ -21,8 +21,15 @@ final class TaskInteractionWindowController: NSWindowController, NSWindowDelegat
         self.monitor = monitor
         self.workEventStore = workEventStore
         super.init(window: nil)
-        roleNameCancellable = gasConfiguration.$workRoleName.sink { [weak self] _ in
-            self?.window?.title = "DeskPet \(gasConfiguration.taskActionTitle)"
+        administrativeTitleCancellable = Publishers.CombineLatest(
+            gasConfiguration.$administrativeTitleOverride,
+            gasConfiguration.$integrationMetadata
+        ).sink { [weak self] localOverride, metadata in
+            let title = GASTaskConfigurationStore.resolveAdministrativeTitle(
+                override: localOverride,
+                dashboardTitle: metadata?.roleName
+            )
+            self?.window?.title = "DeskPet \(title)任務操作"
         }
     }
 

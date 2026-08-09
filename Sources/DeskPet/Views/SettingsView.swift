@@ -122,23 +122,23 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            settingsCard("工作介面名稱", systemImage: "textformat") {
+            settingsCard("行政職稱與工作介面", systemImage: "person.text.rectangle") {
                 HStack {
-                    Text("角色名稱")
+                    Text("行政職稱")
                         .frame(width: 90, alignment: .leading)
-                    TextField("例如：總務、教務、學務、資訊", text: $model.workRoleNameDraft)
+                    TextField("例如：教務主任、事務組長", text: $model.administrativeTitleDraft)
                         .textFieldStyle(.roundedBorder)
-                        .onSubmit { model.saveWorkRoleName() }
-                    Button("儲存名稱") { model.saveWorkRoleName() }
-                    Button("恢復預設") { model.resetWorkRoleName() }
-                        .disabled(model.gasConfiguration.workRoleName == GASTaskConfigurationStore.defaultWorkRoleName)
+                        .onSubmit { model.saveAdministrativeTitle() }
+                    Button("儲存職稱") { model.saveAdministrativeTitle() }
+                    Button("跟隨 Dashboard") { model.resetAdministrativeTitle() }
+                        .disabled(model.gasConfiguration.administrativeTitleOverride.isEmpty)
                 }
 
-                Text(model.workRoleNameStatus)
+                Text(model.administrativeTitleStatus)
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text("套用於工作台、工作摘要、提醒與任務操作等介面標題；不會修改 Dashboard 設定或任務負責人。")
+                Text("依序使用本機覆寫、Dashboard ROLE_NAME、預設「總務」。同一職稱會套用到工作台、工作摘要、工作提醒、任務操作與 DeskPet 新建任務的負責人；不修改 Dashboard 的 OFFICE_KEY／ROLE_KEY。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -300,29 +300,6 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-
-                Divider()
-
-                HStack {
-                    Text("行政職稱")
-                        .frame(width: 90, alignment: .leading)
-                    TextField("例如：教務主任、事務組長", text: $model.administrativeTitleDraft)
-                        .textFieldStyle(.roundedBorder)
-                        .onSubmit { model.saveAdministrativeTitle() }
-                    Button("儲存職稱") { model.saveAdministrativeTitle() }
-                    Button("跟隨 Dashboard") { model.resetAdministrativeTitle() }
-                        .disabled(model.gasConfiguration.administrativeTitleOverride.isEmpty)
-                }
-
-                Text(model.administrativeTitleStatus)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Text("本機覆寫只影響 DeskPet 新建任務的負責人名稱，不修改 Dashboard 的 OFFICE_KEY／ROLE_KEY；按「跟隨 Dashboard」即可恢復同步。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Divider()
 
                 Toggle(
                     "啟用 Ambient Agent 主動任務摘要",

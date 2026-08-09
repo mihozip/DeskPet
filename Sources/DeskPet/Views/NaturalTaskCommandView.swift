@@ -29,7 +29,7 @@ struct NaturalTaskCommandView: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text("DeskPet 自然語句操作")
                     .font(.title2.bold())
-                Text("Gemini 會從目前\(model.workRoleName)任務中找出你指的那一件，再提出變更草案。")
+                Text("Gemini 會從目前\(model.administrativeTitle)任務中找出你指的那一件，再提出變更草案。")
                     .foregroundStyle(.secondary)
             }
             Spacer()

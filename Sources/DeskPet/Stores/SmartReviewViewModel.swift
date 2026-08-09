@@ -205,7 +205,7 @@ final class SmartReviewViewModel: ObservableObject {
         guard !isCheckingDuplicates else { return }
 
         isCheckingDuplicates = true
-        duplicateCheckMessage = "正在檢查 Inbox 與進行中的\(gasConfiguration.workRoleName)任務…"
+        duplicateCheckMessage = "正在檢查 Inbox 與進行中的\(gasConfiguration.administrativeTitle)任務…"
         duplicateCandidates = []
         defer { isCheckingDuplicates = false }
 

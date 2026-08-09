@@ -2,6 +2,16 @@
 
 All notable changes to DeskPet are documented here. The project is pre-1.0, so interfaces and stored-data formats may still evolve.
 
+## [0.9.4.0] - 2026-08
+
+### Changed
+- Unified role-specific UI labels and GAS task ownership under the administrative title, resolved as local override → Dashboard `ROLE_NAME` → `總務` fallback.
+- Workbench, work digest, work reminder, task-action, natural-language and duplicate-check UI now use the same administrative title.
+- Moved administrative-title editing to General settings and removed the separate work-interface-name control.
+
+### Migration
+- Existing `0.9.3.0` work-interface-name preferences are migrated once into the administrative-title override when no override already exists, then the retired key is removed.
+
 ## [0.9.3.0] - 2026-08
 
 ### Added
