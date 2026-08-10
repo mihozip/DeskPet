@@ -9,12 +9,12 @@ final class WorkEventStore: ObservableObject {
     private let fileURL: URL
     private let calendar: Calendar
 
-    init(fileManager: FileManager = .default, calendar: Calendar = .current) {
+    init(fileManager: FileManager = .default, calendar: Calendar = .current, storageDirectory: URL? = nil) {
         self.fileManager = fileManager
         self.calendar = calendar
 
         let supportDirectory = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let appDirectory = supportDirectory.appendingPathComponent("DeskPet", isDirectory: true)
+        let appDirectory = storageDirectory ?? supportDirectory.appendingPathComponent("DeskPet", isDirectory: true)
         try? fileManager.createDirectory(at: appDirectory, withIntermediateDirectories: true)
         fileURL = appDirectory.appendingPathComponent("work-events.json")
         load()

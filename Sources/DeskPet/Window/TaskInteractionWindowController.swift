@@ -41,7 +41,8 @@ final class TaskInteractionWindowController: NSWindowController, NSWindowDelegat
         task: GASTaskDigest.Task,
         preselectedAction: GASTaskMutationKind? = nil,
         prefilledNote: String? = nil,
-        prefilledDueDate: Date? = nil
+        prefilledDueDate: Date? = nil,
+        prefilledNextAction: String? = nil
     ) {
         let model = TaskInteractionViewModel(
             task: task,
@@ -51,6 +52,7 @@ final class TaskInteractionWindowController: NSWindowController, NSWindowDelegat
             preselectedAction: preselectedAction,
             prefilledNote: prefilledNote,
             prefilledDueDate: prefilledDueDate,
+            prefilledNextAction: prefilledNextAction,
             onUpdated: { [weak self] in
                 await self?.monitor.refresh(manual: false)
             }

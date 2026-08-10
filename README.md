@@ -9,7 +9,7 @@
 
 DeskPet 是一隻住在 macOS 桌面的工作代理人。它把快速記事、規則或 Gemini 理解、人工確認、Calendar／Reminders／GAS 任務執行，以及每日工作日誌串成同一條可追蹤的工作流。
 
-**目前版本：0.9.5.1 — Custom App Icon（pre-1.0 / RC）**
+**目前版本：1.0.0.0 — RC1 / Daily Work Loop**
 
 DeskPet 是以 Swift / SwiftUI / AppKit 開發的 macOS 桌面工具。它不是要取代既有的任務系統，而是提供一個隨手可用的桌面入口，把零散資訊轉成可追蹤的工作。
 
@@ -41,6 +41,11 @@ Work Diary
 - Inbox → Task Link：保留原始 Inbox 與正式 GAS Task 的關聯。
 - Duplicate Guard：建立 GAS Task 前提示可能重複的工作，不自動刪除或合併。
 - Work Diary：以 `WorkEvent` 保存每天實際發生的工作事件，可供後續匯出與分析。
+- Today Brief：不依賴 Gemini，以確定性規則整理逾期、今日、高優先、等待與 Inbox 工作。
+- Next Action：把最近進度與 Dashboard 既有「下一步行動」欄位一起帶入人工確認流程。
+- Waiting Radar：以等待對象／狀態與更新時間 heuristic 顯示等待工作，不改寫截止日。
+- Daily Wrap / Weekly Review：完全由原始 `WorkEvent` 重建每日收工與週回顧。
+- Pet Work State / Snooze：工作狀態只提供視覺回饋；稍後提醒只保存本機狀態。
 
 ## 系統需求
 
@@ -137,6 +142,8 @@ DeskPet 依序使用「本機行政職稱覆寫 → Dashboard `ROLE_NAME` → �
 ```
 
 更多資料流與隱私說明：[`PRIVACY.md`](PRIVACY.md)
+
+RC1.0 Daily Work Loop 設計與測試計畫：[`docs/RC1_DAILY_WORK_LOOP.md`](docs/RC1_DAILY_WORK_LOOP.md)、[`docs/RC1_TEST_PLAN.md`](docs/RC1_TEST_PLAN.md)
 
 ## 專案結構
 

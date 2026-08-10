@@ -14,6 +14,11 @@ let package = Package(
             name: "DeskPet",
             path: "Sources/DeskPet",
             exclude: ["Resources"]
+        ),
+        .testTarget(
+            name: "DeskPetTests",
+            dependencies: ["DeskPet"],
+            path: "Tests/DeskPetTests"
         )
     ]
 )

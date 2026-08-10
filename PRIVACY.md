@@ -13,6 +13,8 @@ DeskPet stores its working data under the current macOS user account:
 
 Preferences such as pet size, animation intensity, shortcut preset, Gemini model selection and GAS polling settings use macOS `UserDefaults`.
 
+RC1.0 snoozes also use `UserDefaults` and contain only a GAS task ID plus a local expiration date. Snoozing does not change the remote task or its deadline.
+
 The non-secret Dashboard integration metadata and an optional local administrative-title override also use `UserDefaults`.
 
 ## Keychain secrets

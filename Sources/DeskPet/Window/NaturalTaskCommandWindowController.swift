@@ -6,14 +6,14 @@ final class NaturalTaskCommandWindowController: NSWindowController, NSWindowDele
     private let monitor: GASTaskAmbientMonitor
     private let connector: GASTaskConnector
     private let aiConfiguration: AIConfigurationStore
-    private let onOpenInteraction: (GASTaskDigest.Task, GASTaskMutationKind, String, Date?) -> Void
+    private let onOpenInteraction: (GASTaskDigest.Task, GASTaskMutationKind, String, Date?, String?) -> Void
     private var voiceService: VoiceCommandService?
 
     init(
         monitor: GASTaskAmbientMonitor,
         connector: GASTaskConnector,
         aiConfiguration: AIConfigurationStore,
-        onOpenInteraction: @escaping (GASTaskDigest.Task, GASTaskMutationKind, String, Date?) -> Void
+        onOpenInteraction: @escaping (GASTaskDigest.Task, GASTaskMutationKind, String, Date?, String?) -> Void
     ) {
         self.monitor = monitor
         self.connector = connector

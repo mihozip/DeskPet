@@ -71,6 +71,7 @@ struct TaskInteractionView: View {
             Text("要做什麼？")
                 .font(.headline)
             HStack(spacing: 10) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 125))], spacing: 8) {
                 ForEach(GASTaskMutationKind.allCases) { action in
                     Button {
                         model.choose(action)
@@ -79,6 +80,7 @@ struct TaskInteractionView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
+                }
                 }
             }
         }
@@ -93,6 +95,19 @@ struct TaskInteractionView: View {
                 if model.includeTime {
                     DatePicker("新的截止時間", selection: $model.newDueTime, displayedComponents: .hourAndMinute)
                 }
+            }
+
+            if action == .updateProgress {
+                Text("下一步行動")
+                    .font(.subheadline.weight(.medium))
+                TextField("例如：請校長確認預算", text: $model.nextAction, axis: .vertical)
+                    .lineLimit(2...3)
+            }
+
+            if action == .changeWaiting {
+                Text("等待對象")
+                    .font(.subheadline.weight(.medium))
+                TextField("例如：校長、廠商", text: $model.waitingTarget)
             }
 
             Text("進度備註")
@@ -120,6 +135,9 @@ struct TaskInteractionView: View {
             }
             if let after = preview.progressAfter, !after.isEmpty, after != preview.progressBefore {
                 ChangeRow(label: "最近進度", before: preview.progressBefore, after: after)
+            }
+            if let after = preview.nextActionAfter, after != preview.nextActionBefore {
+                ChangeRow(label: "下一步行動", before: preview.nextActionBefore, after: after.isEmpty ? "清除" : after)
             }
         }
         .padding(12)

@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const crypto = require('node:crypto');
 
 const root = path.resolve(__dirname, '..');
 const source = fs.readFileSync(
@@ -11,9 +12,15 @@ const source = fs.readFileSync(
 
 const context = vm.createContext({
   console,
-  PropertiesService: {},
+  PropertiesService: {
+    getScriptProperties: () => ({ getProperty: (key) => key === 'DESKPET_API_TOKEN' ? 'secret-token' : '' }),
+  },
   SpreadsheetApp: {},
-  Utilities: {},
+  Utilities: {
+    DigestAlgorithm: { SHA_256: 'SHA_256' },
+    Charset: { UTF_8: 'UTF_8' },
+    computeDigest: (_algorithm, value) => Array.from(crypto.createHash('sha256').update(String(value)).digest()),
+  },
 });
 vm.runInContext(source, context);
 
@@ -90,5 +97,16 @@ assert.throws(
   () => context.validateDashboardContract_({ getSheetByName: () => null }),
   /school-admin-daily-dashboard README/,
 );
+
+assert.match(source, /allowedKeys = \['status', 'dueDate', 'dueTime', 'nextAction', 'waitingFor', 'progress'\]/);
+assert.match(source, /headerMap\['下一步行動'\]/);
+assert.throws(() => context.verifyToken_('wrong-token'), /Token 無效/);
+assert.doesNotThrow(() => context.verifyToken_('secret-token'));
+assert.equal(
+  context.createDeskPetTaskId_('12345678-1234-1234-1234-123456789012'),
+  context.createDeskPetTaskId_('12345678-1234-1234-1234-123456789012'),
+);
+assert.match(source, /UNSUPPORTED_UPDATE_FIELD/);
+assert.match(source, /if \(existingRow\)[\s\S]*duplicate: true/);
 
 console.log('DeskPet Gateway dashboard contract tests passed');

@@ -14,6 +14,7 @@ struct GeminiNaturalTaskActionInterpreter {
         let action: GASTaskMutationKind?
         let dueDate: Date?
         let note: String
+        let nextAction: String?
         let confidence: Double
         let explanation: String
     }
@@ -44,6 +45,7 @@ struct GeminiNaturalTaskActionInterpreter {
         let hasDueDatetime: Bool
         let dueDatetime: String
         let note: String
+        let nextAction: String?
         let confidence: Double
         let explanation: String
 
@@ -55,6 +57,7 @@ struct GeminiNaturalTaskActionInterpreter {
             case hasDueDatetime = "has_due_datetime"
             case dueDatetime = "due_datetime"
             case note
+            case nextAction = "next_action"
             case confidence
             case explanation
         }
@@ -158,6 +161,7 @@ struct GeminiNaturalTaskActionInterpreter {
             action: action,
             dueDate: dueDate,
             note: result.note.trimmingCharacters(in: .whitespacesAndNewlines),
+            nextAction: result.nextAction?.trimmingCharacters(in: .whitespacesAndNewlines),
             confidence: min(max(result.confidence, 0), 1),
             explanation: result.explanation
         )
@@ -168,6 +172,7 @@ struct GeminiNaturalTaskActionInterpreter {
         case "complete": return .complete
         case "received_reply": return .receivedReply
         case "postpone": return .postpone
+        case "update_progress": return .updateProgress
         default: return nil
         }
     }
@@ -214,6 +219,7 @@ struct GeminiNaturalTaskActionInterpreter {
         - complete：任務已完成。
         - received_reply：原本等待他人／待確認的事項已收到回覆，應轉回進行中並清除等待對象。
         - postpone：調整截止日期／時間。
+        - update_progress：更新最近進度與下一步行動。
         - unknown：無法確定操作。
 
         任務匹配規則：
@@ -243,16 +249,17 @@ struct GeminiNaturalTaskActionInterpreter {
                 "match_status": ["type": "string", "enum": ["matched", "ambiguous", "no_match"]],
                 "task_id": ["type": "string"],
                 "candidate_task_ids": ["type": "array", "items": ["type": "string"], "maxItems": 3],
-                "action": ["type": "string", "enum": ["complete", "received_reply", "postpone", "unknown"]],
+                "action": ["type": "string", "enum": ["complete", "received_reply", "postpone", "update_progress", "unknown"]],
                 "has_due_datetime": ["type": "boolean"],
                 "due_datetime": ["type": "string"],
                 "note": ["type": "string"],
+                "next_action": ["type": "string"],
                 "confidence": ["type": "number", "minimum": 0, "maximum": 1],
                 "explanation": ["type": "string"]
             ],
             "required": [
                 "match_status", "task_id", "candidate_task_ids", "action",
-                "has_due_datetime", "due_datetime", "note", "confidence", "explanation"
+                "has_due_datetime", "due_datetime", "note", "next_action", "confidence", "explanation"
             ],
             "additionalProperties": false
         ]

@@ -19,9 +19,32 @@ struct NaturalTaskActionProposal: Identifiable, Equatable {
     let action: GASTaskMutationKind
     let note: String
     let dueDate: Date?
+    let nextAction: String?
     let explanation: String
     let confidence: Double
     let source: NaturalTaskActionSource
+
+    init(
+        commandText: String,
+        task: GASTaskDigest.Task,
+        action: GASTaskMutationKind,
+        note: String,
+        dueDate: Date?,
+        nextAction: String? = nil,
+        explanation: String,
+        confidence: Double,
+        source: NaturalTaskActionSource
+    ) {
+        self.commandText = commandText
+        self.task = task
+        self.action = action
+        self.note = note
+        self.dueDate = dueDate
+        self.nextAction = nextAction
+        self.explanation = explanation
+        self.confidence = confidence
+        self.source = source
+    }
 
     var includeTime: Bool {
         guard let dueDate else { return false }
@@ -36,6 +59,7 @@ struct NaturalTaskActionAmbiguity: Equatable {
     let action: GASTaskMutationKind?
     let note: String
     let dueDate: Date?
+    let nextAction: String?
     let confidence: Double
     let source: NaturalTaskActionSource
 }

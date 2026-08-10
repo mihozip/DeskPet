@@ -10,23 +10,26 @@ final class TaskInteractionViewModel: ObservableObject {
     @Published var newDueDate = Date()
     @Published var includeTime = false
     @Published var newDueTime = Date()
+    @Published var nextAction = ""
+    @Published var waitingTarget = ""
     @Published private(set) var isSubmitting = false
     @Published private(set) var statusMessage = "選擇一個操作後，DeskPet 會先顯示變更內容。"
     @Published private(set) var didSucceed = false
 
-    private let connector: GASTaskConnector
+    private let connector: any GASTaskUpdating
     private let gasConfiguration: GASTaskConfigurationStore
     private let workEventStore: WorkEventStore
     private let onUpdated: () async -> Void
 
     init(
         task: GASTaskDigest.Task,
-        connector: GASTaskConnector,
+        connector: any GASTaskUpdating,
         gasConfiguration: GASTaskConfigurationStore,
         workEventStore: WorkEventStore,
         preselectedAction: GASTaskMutationKind? = nil,
         prefilledNote: String? = nil,
         prefilledDueDate: Date? = nil,
+        prefilledNextAction: String? = nil,
         onUpdated: @escaping () async -> Void
     ) {
         self.task = task
@@ -35,6 +38,8 @@ final class TaskInteractionViewModel: ObservableObject {
         self.workEventStore = workEventStore
         self.onUpdated = onUpdated
         seedDates(from: task)
+        nextAction = task.nextAction ?? ""
+        waitingTarget = task.waitingFor ?? ""
 
         if let prefilledDueDate {
             self.newDueDate = prefilledDueDate
@@ -51,6 +56,9 @@ final class TaskInteractionViewModel: ObservableObject {
         if let prefilledNote, !prefilledNote.isEmpty {
             self.note = prefilledNote
         }
+        if let prefilledNextAction {
+            self.nextAction = prefilledNextAction
+        }
     }
 
     var taskActionTitle: String { gasConfiguration.taskActionTitle }
@@ -65,6 +73,17 @@ final class TaskInteractionViewModel: ObservableObject {
             if note.isEmpty { note = "已收到回覆，轉回進行中" }
         case .postpone:
             if note.isEmpty { note = "由 DeskPet 調整截止時間" }
+        case .updateProgress:
+            if note.isEmpty { note = task.progress ?? "" }
+        case .followUp:
+            if note.isEmpty {
+                let target = task.waitingFor?.isEmpty == false ? "（\(task.waitingFor!)）" : ""
+                note = "已催辦\(target)"
+            }
+        case .changeWaiting:
+            if note.isEmpty { note = "更新等待對象" }
+        case .clearWaiting:
+            if note.isEmpty { note = "解除等待，繼續處理" }
         }
         statusMessage = "請確認下方變更預覽；按下確認後才會寫入校務任務系統。"
     }
@@ -85,7 +104,9 @@ final class TaskInteractionViewModel: ObservableObject {
                 waitingForBefore: task.waitingFor ?? "",
                 waitingForAfter: nil,
                 progressBefore: task.progress ?? "",
-                progressAfter: note.trimmingCharacters(in: .whitespacesAndNewlines)
+                progressAfter: note.trimmingCharacters(in: .whitespacesAndNewlines),
+                nextActionBefore: task.nextAction ?? "",
+                nextActionAfter: nil
             )
         case .receivedReply:
             return GASTaskMutationPreview(
@@ -100,7 +121,9 @@ final class TaskInteractionViewModel: ObservableObject {
                 waitingForBefore: task.waitingFor ?? "",
                 waitingForAfter: "",
                 progressBefore: task.progress ?? "",
-                progressAfter: note.trimmingCharacters(in: .whitespacesAndNewlines)
+                progressAfter: note.trimmingCharacters(in: .whitespacesAndNewlines),
+                nextActionBefore: task.nextAction ?? "",
+                nextActionAfter: nil
             )
         case .postpone:
             return GASTaskMutationPreview(
@@ -115,7 +138,77 @@ final class TaskInteractionViewModel: ObservableObject {
                 waitingForBefore: task.waitingFor ?? "",
                 waitingForAfter: nil,
                 progressBefore: task.progress ?? "",
-                progressAfter: note.trimmingCharacters(in: .whitespacesAndNewlines)
+                progressAfter: note.trimmingCharacters(in: .whitespacesAndNewlines),
+                nextActionBefore: task.nextAction ?? "",
+                nextActionAfter: nil
+            )
+        case .updateProgress:
+            return GASTaskMutationPreview(
+                taskId: task.taskId,
+                action: action,
+                statusBefore: task.status ?? "",
+                statusAfter: nil,
+                dueDateBefore: task.dueDate ?? "",
+                dueDateAfter: nil,
+                dueTimeBefore: task.dueTime ?? "",
+                dueTimeAfter: nil,
+                waitingForBefore: task.waitingFor ?? "",
+                waitingForAfter: nil,
+                progressBefore: task.progress ?? "",
+                progressAfter: note.trimmingCharacters(in: .whitespacesAndNewlines),
+                nextActionBefore: task.nextAction ?? "",
+                nextActionAfter: nextAction.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+        case .followUp:
+            return GASTaskMutationPreview(
+                taskId: task.taskId,
+                action: action,
+                statusBefore: task.status ?? "",
+                statusAfter: nil,
+                dueDateBefore: task.dueDate ?? "",
+                dueDateAfter: nil,
+                dueTimeBefore: task.dueTime ?? "",
+                dueTimeAfter: nil,
+                waitingForBefore: task.waitingFor ?? "",
+                waitingForAfter: nil,
+                progressBefore: task.progress ?? "",
+                progressAfter: note.trimmingCharacters(in: .whitespacesAndNewlines),
+                nextActionBefore: task.nextAction ?? "",
+                nextActionAfter: nil
+            )
+        case .changeWaiting:
+            return GASTaskMutationPreview(
+                taskId: task.taskId,
+                action: action,
+                statusBefore: task.status ?? "",
+                statusAfter: "等待他人",
+                dueDateBefore: task.dueDate ?? "",
+                dueDateAfter: nil,
+                dueTimeBefore: task.dueTime ?? "",
+                dueTimeAfter: nil,
+                waitingForBefore: task.waitingFor ?? "",
+                waitingForAfter: waitingTarget.trimmingCharacters(in: .whitespacesAndNewlines),
+                progressBefore: task.progress ?? "",
+                progressAfter: note.trimmingCharacters(in: .whitespacesAndNewlines),
+                nextActionBefore: task.nextAction ?? "",
+                nextActionAfter: nil
+            )
+        case .clearWaiting:
+            return GASTaskMutationPreview(
+                taskId: task.taskId,
+                action: action,
+                statusBefore: task.status ?? "",
+                statusAfter: "進行中",
+                dueDateBefore: task.dueDate ?? "",
+                dueDateAfter: nil,
+                dueTimeBefore: task.dueTime ?? "",
+                dueTimeAfter: nil,
+                waitingForBefore: task.waitingFor ?? "",
+                waitingForAfter: "",
+                progressBefore: task.progress ?? "",
+                progressAfter: note.trimmingCharacters(in: .whitespacesAndNewlines),
+                nextActionBefore: task.nextAction ?? "",
+                nextActionAfter: nil
             )
         }
     }
@@ -134,6 +227,7 @@ final class TaskInteractionViewModel: ObservableObject {
                 status: preview.statusAfter,
                 dueDate: preview.dueDateAfter,
                 dueTime: preview.dueTimeAfter,
+                nextAction: preview.nextActionAfter,
                 waitingFor: preview.waitingForAfter,
                 progress: preview.progressAfter?.isEmpty == false ? preview.progressAfter : nil,
                 reason: preview.action.title
@@ -164,6 +258,19 @@ final class TaskInteractionViewModel: ObservableObject {
             let timePart = preview.dueTimeAfter ?? ""
             let deadline = [datePart, timePart].filter { !$0.isEmpty }.joined(separator: " ")
             detail = deadline.isEmpty ? (preview.progressAfter ?? "調整截止時間") : "延期至 \(deadline)"
+        case .updateProgress:
+            kind = .taskUpdated
+            let next = preview.nextActionAfter?.isEmpty == false ? "；下一步：\(preview.nextActionAfter!)" : ""
+            detail = (preview.progressAfter ?? "更新進度") + next
+        case .followUp:
+            kind = .taskUpdated
+            detail = preview.progressAfter ?? "已催辦"
+        case .changeWaiting:
+            kind = .taskUpdated
+            detail = "等待 \(preview.waitingForAfter ?? "")；\(preview.progressAfter ?? "更新等待對象")"
+        case .clearWaiting:
+            kind = .taskUpdated
+            detail = preview.progressAfter ?? "解除等待"
         }
 
         _ = workEventStore.record(

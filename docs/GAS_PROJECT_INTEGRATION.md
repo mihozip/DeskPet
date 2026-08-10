@@ -124,7 +124,9 @@ Gateway 從 `選項清單` 動態讀取：
 | `ping` | 驗證 Token、Dashboard 契約，回傳 integration metadata |
 | `createTask` | 使用 `clientTaskId` 冪等建立任務，分類與優先級依目前 `選項清單` 驗證 |
 | `taskDigest` | 讀取未封存任務與統計，並同步 integration metadata |
-| `updateTask` | 只允許狀態、期限、等待對象與最近進度 |
+| `updateTask` | 只允許狀態、期限、既有下一步行動、等待對象與最近進度 |
+
+RC1.0 將 `nextAction` 安全加入 allow-list，對應既有第 8 欄「下一步行動」。Gateway 仍驗證完整 19 欄契約，不新增或遷移 Dashboard 欄位。
 
 如果 DeskPet 傳來的分類已不在目前處室 profile，Gateway 會安全降級為 `其他`（若存在）或第一個合法分類，避免因切換處室讓建立任務完全失敗。
 

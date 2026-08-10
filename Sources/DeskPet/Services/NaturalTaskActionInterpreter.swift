@@ -12,7 +12,7 @@ struct NaturalTaskActionInterpreter {
             switch self {
             case .emptyCommand: return "請先輸入一句描述，例如：冷氣廠商回覆了。"
             case .noTasks: return "目前還沒有可操作的校務任務，請先同步校務任務系統。"
-            case .couldNotInferAction: return "暫時看不出是要完成、收到回覆，還是延期。"
+            case .couldNotInferAction: return "暫時看不出是要完成、收到回覆、延期，還是更新下一步。"
             case .couldNotMatchTask: return "找不到最適合的任務，請在句子中放入更明確的任務名稱。"
             case .missingDateForPostpone: return "有辨識到延期，但沒有找到新的日期時間。"
             }
@@ -41,6 +41,7 @@ struct NaturalTaskActionInterpreter {
         }
 
         let note = defaultNote(for: action, command: text, task: task)
+        let nextAction = action == .updateProgress ? extractNextAction(from: text) : nil
         let confidence = confidence(for: text, task: task, action: action)
         let explanation = explanation(for: task, action: action, dueDate: dueDate)
 
@@ -50,6 +51,7 @@ struct NaturalTaskActionInterpreter {
             action: action,
             note: note,
             dueDate: dueDate,
+            nextAction: nextAction,
             explanation: explanation,
             confidence: confidence,
             source: .local
@@ -58,6 +60,10 @@ struct NaturalTaskActionInterpreter {
 
     private func inferAction(from text: String) throws -> GASTaskMutationKind {
         let normalized = text.replacingOccurrences(of: "已經", with: "")
+
+        if normalized.contains("下一步") || normalized.contains("接下來") {
+            return .updateProgress
+        }
 
         let completeKeywords = ["完成", "做完", "好了", "搞定", "結案", "處理好了", "完成了"]
         if completeKeywords.contains(where: normalized.contains) {
@@ -143,6 +149,19 @@ struct NaturalTaskActionInterpreter {
             return "已收到回覆，轉回進行中"
         case .postpone:
             return "DeskPet 自然語句：\(command)"
+        case .updateProgress:
+            if let range = command.range(of: "下一步") {
+                let progress = command[..<range.lowerBound]
+                    .trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "，,。")))
+                return progress.isEmpty ? "更新下一步行動" : progress
+            }
+            return command
+        case .followUp:
+            return command
+        case .changeWaiting:
+            return command
+        case .clearWaiting:
+            return command
         }
     }
 
@@ -155,6 +174,14 @@ struct NaturalTaskActionInterpreter {
         case .postpone:
             let formatted = dueDate.map { Self.dateTimeFormatter.string(from: $0) } ?? "新的日期"
             return "將「\(task.name)」延期到 \(formatted)。"
+        case .updateProgress:
+            return "更新「\(task.name)」的最近進度與下一步行動；仍需在確認畫面授權。"
+        case .followUp:
+            return "為「\(task.name)」記錄一次催辦。"
+        case .changeWaiting:
+            return "修改「\(task.name)」的等待對象。"
+        case .clearWaiting:
+            return "解除「\(task.name)」的等待狀態。"
         }
     }
 
@@ -164,6 +191,19 @@ struct NaturalTaskActionInterpreter {
         if action == .postpone { base += 0.06 }
         if task.isWaiting && action == .receivedReply { base += 0.06 }
         return min(base, 0.96)
+    }
+
+    private func extractNextAction(from text: String) -> String? {
+        let markers = ["下一步", "接下來"]
+        guard let marker = markers.first(where: text.contains),
+              let range = text.range(of: marker) else { return nil }
+        var value = String(text[range.upperBound...])
+            .trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "：:，,。")))
+        for prefix in ["是", "請", "要"] where value.hasPrefix(prefix) {
+            value.removeFirst(prefix.count)
+            value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return value.isEmpty ? nil : value
     }
 
     private static let dateTimeFormatter: DateFormatter = {

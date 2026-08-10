@@ -6,8 +6,11 @@ PRODUCT_NAME="DeskPet"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUNDLE_ID="${BUNDLE_ID:-tw.mihozip.deskpet}"
 VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
-BUILD_NUMBER="951"
-DIST_DIR="$ROOT_DIR/dist-release"
+BUILD_NUMBER="1000"
+# File Provider volumes can immediately reattach FinderInfo to a freshly cleaned
+# bundle and make codesign reject it. Maintainers may stage a release on a local
+# filesystem while keeping the default repository output for normal checkouts.
+DIST_DIR="${DESKPET_RELEASE_DIR:-$ROOT_DIR/dist-release}"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 CONTENTS="$APP_BUNDLE/Contents"
 MACOS_DIR="$CONTENTS/MacOS"
@@ -127,7 +130,7 @@ if [[ ! -s "$RESOURCES_DIR/AppIcon.icns" ]]; then
     exit 1
 fi
 
-COPYFILE_DISABLE=1 /usr/bin/ditto -c -k --keepParent "$APP_BUNDLE" "$ZIP_PATH"
+COPYFILE_DISABLE=1 /usr/bin/ditto -c -k --norsrc --keepParent "$APP_BUNDLE" "$ZIP_PATH"
 
 echo
 printf 'Release App: %s\n' "$APP_BUNDLE"
