@@ -33,7 +33,7 @@ final class NextActionConfirmationTests: XCTestCase {
         )
         XCTAssertEqual(proposal.action, .updateProgress)
         XCTAssertEqual(proposal.note, "冷氣工程報價拿到了")
-        XCTAssertEqual(proposal.nextAction, "校長確認預算。")
+        XCTAssertEqual(proposal.nextAction, "校長確認預算")
     }
 
     @MainActor func testDraftDoesNotWriteUntilSubmit() {
