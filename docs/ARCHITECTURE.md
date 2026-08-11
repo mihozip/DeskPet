@@ -1,5 +1,7 @@
 # DeskPet Architecture
 
+This document describes the DeskPet `1.0.0.0` Release Candidate 1 architecture.
+
 ## Conceptual flow
 
 ```text
@@ -21,6 +23,12 @@ The components intentionally have different responsibilities rather than mirrori
 `WorkEventStore` stores append-style events describing actions DeskPet observed: captures, task creation, replies, postponements, completions and manual diary notes.
 
 The diary is intentionally derived from events so future daily / weekly / monthly analysis can be regenerated from original facts.
+
+### Daily Work Loop — Derived views
+
+`DailyWorkService` is a pure domain service. It combines the current GAS digest, pending Inbox items, WorkEvents, local snooze expirations, and an Asia/Taipei clock into `DailyWorkSnapshot`. Today Brief, Waiting Radar, Daily Wrap, Weekly Review, and Pet Work State are derived values and are never persisted as a second task or diary database.
+
+The existing task-digest utility window presents the Daily Work sections. Any row that can mutate a formal task routes into `TaskInteractionViewModel`; only its explicit submit action calls `GASTaskConnector`. A successful connector response is recorded as a WorkEvent, while failure leaves no success event.
 
 ## State ownership
 
@@ -68,5 +76,7 @@ Application Support/DeskPet/work-events.json
 UserDefaults
 macOS Keychain
 ```
+
+RC1 adds one versioned local `UserDefaults` value containing only task IDs and snooze expiration dates. It does not store task copies or credentials.
 
 Stored models should remain backward-decodable when possible. Any incompatible change should include a migration note in the changelog.

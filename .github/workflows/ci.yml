@@ -48,6 +48,9 @@ jobs:
       - name: Validate package manifest
         run: swift package dump-package >/dev/null
 
+      - name: Run Swift unit tests
+        run: swift test
+
       - name: Build and verify app resources
         run: |
           DESKPET_SKIP_LAUNCH=1 ./script/build_and_run.sh

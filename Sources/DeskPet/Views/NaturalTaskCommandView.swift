@@ -196,6 +196,9 @@ struct NaturalTaskCommandView: View {
                     row("新期限", Self.dateFormatter.string(from: deadline))
                 }
                 row("進度備註", proposal.note)
+                if let nextAction = proposal.nextAction, !nextAction.isEmpty {
+                    row("下一步行動", nextAction)
+                }
                 row("信心度", "\(Int(proposal.confidence * 100))%")
 
                 Text(proposal.explanation)

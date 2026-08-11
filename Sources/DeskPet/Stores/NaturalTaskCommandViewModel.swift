@@ -14,7 +14,7 @@ final class NaturalTaskCommandViewModel: ObservableObject {
     private let aiConfiguration: AIConfigurationStore
     private let localInterpreter: NaturalTaskActionInterpreter
     private let geminiInterpreter: GeminiNaturalTaskActionInterpreter
-    private let onOpenInteraction: (GASTaskDigest.Task, GASTaskMutationKind, String, Date?) -> Void
+    private let onOpenInteraction: (GASTaskDigest.Task, GASTaskMutationKind, String, Date?, String?) -> Void
 
     init(
         monitor: GASTaskAmbientMonitor,
@@ -22,7 +22,7 @@ final class NaturalTaskCommandViewModel: ObservableObject {
         aiConfiguration: AIConfigurationStore,
         localInterpreter: NaturalTaskActionInterpreter = NaturalTaskActionInterpreter(),
         geminiInterpreter: GeminiNaturalTaskActionInterpreter? = nil,
-        onOpenInteraction: @escaping (GASTaskDigest.Task, GASTaskMutationKind, String, Date?) -> Void
+        onOpenInteraction: @escaping (GASTaskDigest.Task, GASTaskMutationKind, String, Date?, String?) -> Void
     ) {
         self.monitor = monitor
         self.connector = connector
@@ -127,6 +127,7 @@ final class NaturalTaskCommandViewModel: ObservableObject {
                 action: action,
                 note: ambiguity.note.isEmpty ? "DeskPet 自然語句：\(commandText)" : ambiguity.note,
                 dueDate: ambiguity.dueDate,
+                nextAction: ambiguity.nextAction,
                 explanation: "你已手動指定「\(task.name)」。\(ambiguity.message)",
                 confidence: max(ambiguity.confidence, 0.90),
                 source: ambiguity.source
@@ -144,6 +145,7 @@ final class NaturalTaskCommandViewModel: ObservableObject {
                 action: local.action,
                 note: local.note,
                 dueDate: local.dueDate,
+                nextAction: local.nextAction,
                 explanation: "你已手動指定「\(task.name)」。\(local.explanation)",
                 confidence: max(local.confidence, 0.90),
                 source: ambiguity.source
@@ -157,7 +159,7 @@ final class NaturalTaskCommandViewModel: ObservableObject {
 
     func proceed() {
         guard let proposal else { return }
-        onOpenInteraction(proposal.task, proposal.action, proposal.note, proposal.dueDate)
+        onOpenInteraction(proposal.task, proposal.action, proposal.note, proposal.dueDate, proposal.nextAction)
     }
 
     private func applyGeminiResolution(
@@ -189,6 +191,7 @@ final class NaturalTaskCommandViewModel: ObservableObject {
                 action: action,
                 note: resolution.note.isEmpty ? "DeskPet 自然語句：\(command)" : resolution.note,
                 dueDate: resolution.dueDate,
+                nextAction: resolution.nextAction,
                 explanation: resolution.explanation,
                 confidence: resolution.confidence,
                 source: .gemini
@@ -203,6 +206,7 @@ final class NaturalTaskCommandViewModel: ObservableObject {
                 action: resolution.action,
                 note: resolution.note,
                 dueDate: resolution.dueDate,
+                nextAction: resolution.nextAction,
                 confidence: resolution.confidence,
                 source: .gemini
             )

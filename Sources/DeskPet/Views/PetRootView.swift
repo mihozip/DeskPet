@@ -5,6 +5,8 @@ struct PetRootView: View {
     @ObservedObject var ambientMonitor: GASTaskAmbientMonitor
     @ObservedObject var dailyPreferences: DailyUsePreferencesStore
     @ObservedObject var gasConfiguration: GASTaskConfigurationStore
+    @ObservedObject var workEventStore: WorkEventStore
+    @ObservedObject var snoozeStore: SnoozeStore
 
     let onOpenInbox: () -> Void
     let onOpenTaskDigest: () -> Void
@@ -17,6 +19,24 @@ struct PetRootView: View {
     let onDragChanged: (CGSize) -> Void
     let onDragEnded: () -> Void
 
+    private var workSnapshot: DailyWorkSnapshot {
+        DailyWorkService().snapshot(
+            tasks: ambientMonitor.digest?.tasks ?? [],
+            inboxItems: model.store.items,
+            events: workEventStore.events,
+            snoozedUntil: snoozeStore.snoozedUntil
+        )
+    }
+
+    private var effectivePetState: PetState {
+        guard model.state == .idle else { return model.state }
+        switch workSnapshot.petWorkState {
+        case .success: return .success
+        case .sleep: return .sleeping
+        case .idle, .normal, .attention, .waiting: return .idle
+        }
+    }
+
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             Color.clear
@@ -28,9 +48,12 @@ struct PetRootView: View {
                 if model.state == .idle {
                     AmbientBriefingBubbleView(monitor: ambientMonitor, gasConfiguration: gasConfiguration)
                         .padding(.trailing, 30)
+
+                    PetWorkStateBadge(state: workSnapshot.petWorkState)
+                        .padding(.trailing, 30)
                 }
 
-                PetFaceView(state: model.state, preferences: dailyPreferences)
+                PetFaceView(state: effectivePetState, preferences: dailyPreferences)
                     .onTapGesture {
                         model.petTapped()
                     }
@@ -52,7 +75,7 @@ struct PetRootView: View {
                             onOpenInbox()
                         }
 
-                        Button(gasConfiguration.taskDigestTitle) {
+                        Button("今日工作") {
                             onOpenTaskDigest()
                         }
 

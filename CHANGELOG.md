@@ -1,6 +1,24 @@
 # Changelog
 
-All notable changes to DeskPet are documented here. The project is pre-1.0, so interfaces and stored-data formats may still evolve.
+All notable changes to DeskPet are documented here. Release Candidate interfaces and stored-data formats may still evolve before the final 1.0 release.
+
+## [1.0.0.0] - 2026-08
+
+Release Candidate 1 — Daily Work Loop.
+
+### Added
+- Added deterministic Today Brief, Waiting Radar, Daily Wrap, and Monday-based Weekly Review derived from GAS tasks, Inbox items, and WorkEvents.
+- Added confirmed recent-progress / next-action updates without changing the Dashboard 19-column schema.
+- Added centralized derived Pet Work State and local-only task snoozes.
+- Added a SwiftPM unit-test target covering priority, review boundaries, waiting, snooze, persistence, pet state, and confirmation safety.
+
+### Changed
+- Reused the existing task digest window as the primary Daily Work surface and expanded Ambient digest reads to 30 candidates.
+- Added `nextAction` to the Gateway `updateTask` allow-list and aligned Gateway digest ordering with RC1 priority tiers.
+
+### Safety
+- Task mutations still require the existing confirmation view and only append WorkEvents after successful writes.
+- Snooze never modifies GAS deadlines; Gemini remains optional; Inbox and WorkEvent persistence formats remain backward compatible.
 
 ## [0.9.5.1] - 2026-08
 

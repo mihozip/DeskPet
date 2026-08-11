@@ -1,7 +1,21 @@
 import Foundation
 
 @MainActor
-final class GASTaskConnector {
+protocol GASTaskUpdating {
+    func updateTask(
+        taskId: String,
+        status: String?,
+        dueDate: String?,
+        dueTime: String?,
+        nextAction: String?,
+        waitingFor: String?,
+        progress: String?,
+        reason: String
+    ) async throws -> GASTaskDigest.Task
+}
+
+@MainActor
+final class GASTaskConnector: GASTaskUpdating {
     struct RemoteTask: Decodable {
         let taskId: String
         let name: String
@@ -14,6 +28,8 @@ final class GASTaskConnector {
         let waitingFor: String?
         let progress: String?
         let detailUrl: String?
+        let createdAt: String?
+        let updatedAt: String?
     }
 
     enum ConnectorError: LocalizedError {
@@ -77,6 +93,7 @@ final class GASTaskConnector {
         let status: String?
         let dueDate: String?
         let dueTime: String?
+        let nextAction: String?
         let waitingFor: String?
         let progress: String?
     }
@@ -208,6 +225,7 @@ final class GASTaskConnector {
         status: String?,
         dueDate: String?,
         dueTime: String?,
+        nextAction: String?,
         waitingFor: String?,
         progress: String?,
         reason: String
@@ -227,6 +245,7 @@ final class GASTaskConnector {
                     status: status,
                     dueDate: dueDate,
                     dueTime: dueTime,
+                    nextAction: nextAction,
                     waitingFor: waitingFor,
                     progress: progress
                 ),
@@ -250,7 +269,9 @@ final class GASTaskConnector {
             waitingFor: remote.waitingFor,
             progress: remote.progress,
             detailUrl: remote.detailUrl,
-            flags: nil
+            flags: nil,
+            createdAt: remote.createdAt,
+            updatedAt: remote.updatedAt
         )
     }
 

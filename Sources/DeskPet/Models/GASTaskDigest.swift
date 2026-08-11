@@ -22,6 +22,40 @@ struct GASTaskDigest: Equatable {
         let progress: String?
         let detailUrl: String?
         let flags: [String]?
+        let createdAt: String?
+        let updatedAt: String?
+
+        init(
+            taskId: String,
+            name: String,
+            category: String? = nil,
+            status: String? = nil,
+            priority: String? = nil,
+            dueDate: String? = nil,
+            dueTime: String? = nil,
+            nextAction: String? = nil,
+            waitingFor: String? = nil,
+            progress: String? = nil,
+            detailUrl: String? = nil,
+            flags: [String]? = nil,
+            createdAt: String? = nil,
+            updatedAt: String? = nil
+        ) {
+            self.taskId = taskId
+            self.name = name
+            self.category = category
+            self.status = status
+            self.priority = priority
+            self.dueDate = dueDate
+            self.dueTime = dueTime
+            self.nextAction = nextAction
+            self.waitingFor = waitingFor
+            self.progress = progress
+            self.detailUrl = detailUrl
+            self.flags = flags
+            self.createdAt = createdAt
+            self.updatedAt = updatedAt
+        }
 
         var id: String { taskId }
 

@@ -283,7 +283,7 @@ function createTask_(request) {
 /**
  * 由 DeskPet 人工確認後更新既有任務。
  * 只允許有限欄位，避免桌寵改寫任務名稱、分類、負責人等核心資料。
- * request.update 可包含：status / dueDate / dueTime / waitingFor / progress
+ * request.update 可包含：status / dueDate / dueTime / nextAction / waitingFor / progress
  */
 function updateTask_(request) {
   const taskId = cleanText_(request.taskId, 120);
@@ -293,7 +293,7 @@ function updateTask_(request) {
   const source = cleanText_(request.source, 80) || 'deskpet-macos';
   const reason = cleanText_(request.reason, 120) || '更新任務';
 
-  const allowedKeys = ['status', 'dueDate', 'dueTime', 'waitingFor', 'progress'];
+  const allowedKeys = ['status', 'dueDate', 'dueTime', 'nextAction', 'waitingFor', 'progress'];
   const requestedKeys = Object.keys(incoming);
   const unsupported = requestedKeys.filter(key => !allowedKeys.includes(key));
   if (unsupported.length) {
@@ -337,6 +337,10 @@ function updateTask_(request) {
       sheet.getRange(rowNumber, headerMap['截止時間']).setValue(value ? parseTime_(value) : '');
     }
 
+    if (Object.prototype.hasOwnProperty.call(incoming, 'nextAction')) {
+      sheet.getRange(rowNumber, headerMap['下一步行動']).setValue(cleanText_(incoming.nextAction, 1000));
+    }
+
     if (Object.prototype.hasOwnProperty.call(incoming, 'waitingFor')) {
       sheet.getRange(rowNumber, headerMap['等待對象']).setValue(cleanText_(incoming.waitingFor, 200));
     }
@@ -361,6 +365,7 @@ function updateTask_(request) {
   } finally {
     lock.releaseLock();
   }
+
 }
 
 
@@ -417,18 +422,16 @@ function listTasksForDigest_(sheet, headerMap) {
 }
 
 function compareDigestTasks_(a, b) {
-  const rank = task => {
-    let score = 0;
-    if (task.priority === '高') score -= 1000;
-    if (task.flags.includes('overdue')) score -= 800;
-    if (task.flags.includes('dueToday')) score -= 500;
-    if (task.flags.includes('waiting')) score -= 250;
-    if (task.status === '進行中') score -= 100;
-    return score;
+  const tier = task => {
+    if (task.flags.includes('overdue')) return 0;
+    if (task.flags.includes('dueToday')) return 1;
+    if (task.flags.includes('urgent')) return 2;
+    if (task.flags.includes('waiting') || task.waitingFor) return 3;
+    return 4;
   };
 
-  const scoreDiff = rank(a) - rank(b);
-  if (scoreDiff !== 0) return scoreDiff;
+  const tierDiff = tier(a) - tier(b);
+  if (tierDiff !== 0) return tierDiff;
 
   const dateA = a.dueDate || '9999-12-31';
   const dateB = b.dueDate || '9999-12-31';
@@ -438,7 +441,13 @@ function compareDigestTasks_(a, b) {
   const timeB = b.dueTime || '23:59';
   if (timeA !== timeB) return timeA.localeCompare(timeB);
 
-  return (Number(a.sortOrder) || 9999) - (Number(b.sortOrder) || 9999);
+  const priorityRank = priority => priority === '高' ? 0 : (priority === '中' ? 1 : (priority === '低' ? 2 : 3));
+  const priorityDiff = priorityRank(a.priority) - priorityRank(b.priority);
+  if (priorityDiff !== 0) return priorityDiff;
+
+  const updatedDiff = (a.updatedAt || '').localeCompare(b.updatedAt || '');
+  if (updatedDiff !== 0) return updatedDiff;
+  return String(a.taskId || '').localeCompare(String(b.taskId || ''));
 }
 
 function isDoneStatus_(status) {

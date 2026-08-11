@@ -75,7 +75,7 @@ final class GASTaskAmbientMonitor: ObservableObject {
         defer { isRefreshing = false }
 
         do {
-            let newDigest = try await connector.fetchTaskDigest(limit: 12)
+            let newDigest = try await connector.fetchTaskDigest(limit: 30)
             let oldSummary = previousSummary
             digest = newDigest
             previousSummary = newDigest.summary

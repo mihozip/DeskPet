@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let actionService = CalendarActionService()
     private let gasConfiguration = GASTaskConfigurationStore()
     private let dailyPreferences = DailyUsePreferencesStore()
+    private let snoozeStore = SnoozeStore()
     private let launchAtLogin = LaunchAtLoginService()
     private let softwareUpdate = SoftwareUpdateService()
     private lazy var gasConnector = GASTaskConnector(configuration: gasConfiguration)
@@ -56,12 +57,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             monitor: ambientMonitor,
             connector: gasConnector,
             aiConfiguration: aiConfiguration,
-            onOpenInteraction: { [weak interactionController] task, action, note, dueDate in
+            onOpenInteraction: { [weak interactionController] task, action, note, dueDate, nextAction in
                 interactionController?.show(
                     task: task,
                     preselectedAction: action,
                     prefilledNote: note,
-                    prefilledDueDate: dueDate
+                    prefilledDueDate: dueDate,
+                    prefilledNextAction: nextAction
                 )
             }
         )
@@ -70,6 +72,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let digestController = TaskDigestWindowController(
             monitor: ambientMonitor,
             gasConfiguration: gasConfiguration,
+            captureStore: store,
+            workEventStore: workEventStore,
+            snoozeStore: snoozeStore,
+            onOpenTaskAction: { [weak interactionController] task, action in
+                interactionController?.show(task: task, preselectedAction: action)
+            },
             onOpenTask: { [weak interactionController] task in interactionController?.show(task: task) }
         )
         taskDigestWindowController = digestController
@@ -135,6 +143,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ambientMonitor: ambientMonitor,
             dailyPreferences: dailyPreferences,
             gasConfiguration: gasConfiguration,
+            workEventStore: workEventStore,
+            snoozeStore: snoozeStore,
             onOpenInbox: { [weak inboxController] in inboxController?.showInbox() },
             onOpenTaskDigest: { [weak digestController] in digestController?.showDigest() },
             onOpenDiary: { [weak diaryController] in diaryController?.showDiary() },
