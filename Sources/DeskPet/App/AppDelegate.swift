@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var store = CaptureStore(workEventStore: workEventStore)
     private let aiConfiguration = AIConfigurationStore()
     private let actionService = CalendarActionService()
+    private let calendarQueryService = CalendarQueryService()
     private let gasConfiguration = GASTaskConfigurationStore()
     private let dailyPreferences = DailyUsePreferencesStore()
     private let snoozeStore = SnoozeStore()
@@ -21,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var taskInteractionWindowController: TaskInteractionWindowController?
     private var naturalTaskCommandWindowController: NaturalTaskCommandWindowController?
     private var workDiaryWindowController: WorkDiaryWindowController?
+    private var calendarQueryWindowController: CalendarQueryWindowController?
     private var hotKeyService: GlobalHotKeyService?
     private var voiceHotKeyService: VoiceHotKeyService?
 
@@ -101,7 +103,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         return
                     }
 
-                    // 已完成或不在摘要前 30 筆時，至少帶使用者回工作摘要；Inbox 仍保留 taskId 可供搜尋。
                     digestController?.showDigest()
                 }
             }
@@ -110,6 +111,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let diaryController = WorkDiaryWindowController(store: workEventStore)
         workDiaryWindowController = diaryController
+
+        let calendarQueryController = CalendarQueryWindowController(service: calendarQueryService)
+        calendarQueryWindowController = calendarQueryController
 
         let hotKeyService = GlobalHotKeyService()
         self.hotKeyService = hotKeyService
@@ -148,6 +152,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onOpenInbox: { [weak inboxController] in inboxController?.showInbox() },
             onOpenTaskDigest: { [weak digestController] in digestController?.showDigest() },
             onOpenDiary: { [weak diaryController] in diaryController?.showDiary() },
+            onOpenCalendarQuery: { [weak calendarQueryController] in calendarQueryController?.showCalendarQuery() },
             onOpenNaturalAction: { [weak naturalActionController] in naturalActionController?.showCommandWindow() },
             onOpenVoiceAction: { [weak naturalActionController] in naturalActionController?.showCommandWindow(autoStartVoice: true) },
             onOpenSettings: { [weak settingsController] in settingsController?.showSettings() },
