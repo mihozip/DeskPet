@@ -2,6 +2,25 @@
 
 All notable changes to DeskPet are documented here. Release Candidate interfaces and stored-data formats may still evolve before the final 1.0 release.
 
+## [1.1.0.0] - 2026-08
+
+Release Candidate 1.1 — Calendar Intelligence.
+
+### Added
+- Added an on-demand Calendar Intelligence window that reads macOS Calendar events and returns a date-sorted list with time, title, location, and calendar source.
+- Added local natural-language calendar query parsing for current/next year, current/next month, numeric or Chinese month names, location constraints, and lecturer/training/meeting categories.
+- Added deterministic lecturer matching with explicit presenter signals such as `講師`, `主講`, `授課`, and `演講`, while excluding attendee signals such as `參加`, `報名`, `學員`, and `受訓`.
+- Added Swift unit tests for calendar query interval parsing, Chinese month/location parsing, lecturer filtering, and general keyword matching.
+
+### Changed
+- Added `查詢行事曆…` to the DeskPet context menu without changing the existing Inbox, Daily Work, GAS task, or Work Diary flows.
+- Calendar write actions keep their existing write-only permission path; full event access is requested only when the user actively performs a Calendar Intelligence query.
+
+### Privacy / Safety
+- RC1.1 calendar query parsing and filtering run locally and do not send Calendar event content to Gemini.
+- Calendar, Reminders, and GAS write operations remain confirmation-gated; Calendar Intelligence is read-only.
+- No GAS Dashboard schema or local Inbox / WorkEvent persistence format was changed.
+
 ## [1.0.0.0] - 2026-08
 
 Release Candidate 1 — Daily Work Loop.
