@@ -107,7 +107,7 @@ struct CalendarQueryParser {
         ]
         for phrase in phrases { result = result.replacingOccurrences(of: phrase, with: " ") }
         result = result.replacingOccurrences(of: #"(?<!\d)(1[0-2]|[1-9])\s*月"#, with: " ", options: .regularExpression)
-        for token in ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"] {
+        for token in ["十二月", "十一月", "十月", "九月", "八月", "七月", "六月", "五月", "四月", "三月", "二月", "一月"] {
             result = result.replacingOccurrences(of: token, with: " ")
         }
         if let location {
