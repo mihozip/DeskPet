@@ -48,11 +48,18 @@ struct CalendarQueryView: View {
 
             if model.events.isEmpty {
                 Spacer()
-                ContentUnavailableView(
-                    "尚無行程結果",
-                    systemImage: "calendar.badge.magnifyingglass",
-                    description: Text("可試試「今年所有研習講師的行程」、「下個月有哪些研習」或「九月在台中的行程」。")
-                )
+                VStack(spacing: 10) {
+                    Image(systemName: "calendar.badge.clock")
+                        .font(.system(size: 36))
+                        .foregroundStyle(.secondary)
+                    Text("尚無行程結果")
+                        .font(.headline)
+                    Text("可試試「今年所有研習講師的行程」、「下個月有哪些研習」或「九月在台中的行程」。")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
                 Spacer()
             } else {
                 List(model.events) { event in
@@ -76,7 +83,7 @@ struct CalendarQueryView: View {
                             }
                             Text(event.calendarName)
                                 .font(.caption)
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(.secondary)
                         }
                         Spacer()
                     }
