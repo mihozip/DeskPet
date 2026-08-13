@@ -11,6 +11,7 @@ struct PetRootView: View {
     let onOpenInbox: () -> Void
     let onOpenTaskDigest: () -> Void
     let onOpenDiary: () -> Void
+    let onOpenCalendarQuery: () -> Void
     let onOpenNaturalAction: () -> Void
     let onOpenVoiceAction: () -> Void
     let onOpenSettings: () -> Void
@@ -54,76 +55,43 @@ struct PetRootView: View {
                 }
 
                 PetFaceView(state: effectivePetState, preferences: dailyPreferences)
-                    .onTapGesture {
-                        model.petTapped()
-                    }
+                    .onTapGesture { model.petTapped() }
                     .gesture(
                         DragGesture(minimumDistance: 4)
-                            .onChanged { value in
-                                onDragChanged(value.translation)
-                            }
-                            .onEnded { _ in
-                                onDragEnded()
-                            }
+                            .onChanged { value in onDragChanged(value.translation) }
+                            .onEnded { _ in onDragEnded() }
                     )
                     .contextMenu {
-                        Button("快速記事（\(shortcutLabel())）") {
-                            model.beginCapture()
-                        }
+                        Button("快速記事（\(shortcutLabel())）") { model.beginCapture() }
+                        Button("開啟 Inbox") { onOpenInbox() }
+                        Button("今日工作") { onOpenTaskDigest() }
+                        Button("每日工作日誌…") { onOpenDiary() }
 
-                        Button("開啟 Inbox") {
-                            onOpenInbox()
-                        }
+                        Divider()
 
-                        Button("今日工作") {
-                            onOpenTaskDigest()
-                        }
+                        Button("查詢行事曆…") { onOpenCalendarQuery() }
+                        Button("語音操作（⌃⌥V）") { onOpenVoiceAction() }
+                        Button("自然語句操作…") { onOpenNaturalAction() }
 
-                        Button("每日工作日誌…") {
-                            onOpenDiary()
-                        }
-
-                        Button("語音操作（⌃⌥V）") {
-                            onOpenVoiceAction()
-                        }
-
-                        Button("自然語句操作…") {
-                            onOpenNaturalAction()
-                        }
+                        Divider()
 
                         Button("立即同步校務任務系統") {
                             Task { await ambientMonitor.refresh(manual: true) }
                         }
-
-                        Button("設定…") {
-                            onOpenSettings()
-                        }
-
-                        Button("系統診斷…") {
-                            onOpenDiagnostics()
-                        }
-
-                        Button("顯示 Inbox JSON") {
-                            model.store.revealInboxFile()
-                        }
+                        Button("設定…") { onOpenSettings() }
+                        Button("系統診斷…") { onOpenDiagnostics() }
+                        Button("顯示 Inbox JSON") { model.store.revealInboxFile() }
 
                         Divider()
 
                         if model.state == .sleeping {
-                            Button("叫醒") {
-                                model.wake()
-                            }
+                            Button("叫醒") { model.wake() }
                         } else {
-                            Button("睡覺") {
-                                model.sleep()
-                            }
+                            Button("睡覺") { model.sleep() }
                         }
 
                         Divider()
-
-                        Button("退出 DeskPet") {
-                            model.quit()
-                        }
+                        Button("退出 DeskPet") { model.quit() }
                     }
             }
         }
