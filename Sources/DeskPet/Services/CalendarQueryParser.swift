@@ -64,11 +64,19 @@ struct CalendarQueryParser {
     }
 
     private func explicitMonth(in text: String) -> Int? {
-        guard let regex = try? NSRegularExpression(pattern: #"(?<!\d)(1[0-2]|[1-9])\s*月"#),
-              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..<text.endIndex, in: text)),
-              let range = Range(match.range(at: 1), in: text)
-        else { return nil }
-        return Int(text[range])
+        if let regex = try? NSRegularExpression(pattern: #"(?<!\d)(1[0-2]|[1-9])\s*月"#),
+           let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..<text.endIndex, in: text)),
+           let range = Range(match.range(at: 1), in: text),
+           let month = Int(text[range]) {
+            return month
+        }
+
+        let chineseMonths: [(String, Int)] = [
+            ("十二月", 12), ("十一月", 11), ("十月", 10),
+            ("九月", 9), ("八月", 8), ("七月", 7), ("六月", 6),
+            ("五月", 5), ("四月", 4), ("三月", 3), ("二月", 2), ("一月", 1)
+        ]
+        return chineseMonths.first(where: { text.contains($0.0) })?.1
     }
 
     private func monthInterval(containing date: Date) -> DateInterval {
@@ -82,7 +90,7 @@ struct CalendarQueryParser {
     }
 
     private func detectLocation(in text: String) -> String? {
-        let pattern = #"(?:在|位於)\s*([^，,。！？!?\s]{2,12})\s*(?:的)?(?:行程|研習|課程|會議|活動)?"#
+        let pattern = #"(?:在|位於)\s*([^，,。！？!?\s的]{2,12})(?:的)?(?:行程|研習|課程|會議|活動)?"#
         guard let regex = try? NSRegularExpression(pattern: pattern),
               let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..<text.endIndex, in: text)),
               let range = Range(match.range(at: 1), in: text)
@@ -99,9 +107,13 @@ struct CalendarQueryParser {
         ]
         for phrase in phrases { result = result.replacingOccurrences(of: phrase, with: " ") }
         result = result.replacingOccurrences(of: #"(?<!\d)(1[0-2]|[1-9])\s*月"#, with: " ", options: .regularExpression)
+        for token in ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"] {
+            result = result.replacingOccurrences(of: token, with: " ")
+        }
         if let location {
             result = result.replacingOccurrences(of: location, with: " ")
             result = result.replacingOccurrences(of: "在", with: " ")
+            result = result.replacingOccurrences(of: "的", with: " ")
         }
 
         let categoryWords: [String]
