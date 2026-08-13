@@ -1,0 +1,116 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/release.yml
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare release metadata
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          TAG="v${VERSION}"
+          ZIP_PATH="$RUNNER_TEMP/dist-release/DeskPet-${VERSION}.zip"
+          NOTES_PATH="$RUNNER_TEMP/release-notes.md"
+
+          if [[ "$VERSION" == "1.1.0.0" ]]; then
+            RELEASE_TITLE="DeskPet RC1.1 — Calendar Intelligence"
+          else
+            RELEASE_TITLE="DeskPet ${VERSION}"
+          fi
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            EXISTS=true
+          else
+            EXISTS=false
+          fi
+
+          {
+            echo "VERSION=$VERSION"
+            echo "TAG=$TAG"
+            echo "ZIP_PATH=$ZIP_PATH"
+            echo "NOTES_PATH=$NOTES_PATH"
+            echo "RELEASE_TITLE=$RELEASE_TITLE"
+            echo "RELEASE_EXISTS=$EXISTS"
+          } >> "$GITHUB_ENV"
+
+      - name: Stop if release already exists
+        if: env.RELEASE_EXISTS == 'true'
+        run: echo "${TAG} already exists; nothing to publish."
+
+      - name: Public repository checks
+        if: env.RELEASE_EXISTS != 'true'
+        run: |
+          set -euo pipefail
+          ./script/check_public_repo.sh
+          swift package dump-package >/dev/null
+
+      - name: Run tests
+        if: env.RELEASE_EXISTS != 'true'
+        run: swift test
+
+      - name: Build RC package
+        if: env.RELEASE_EXISTS != 'true'
+        env:
+          DESKPET_RELEASE_DIR: ${{ runner.temp }}/dist-release
+        run: ./script/build_release.sh
+
+      - name: Prepare release notes
+        if: env.RELEASE_EXISTS != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          awk -v version="$VERSION" '
+            $0 == "## [" version "] - 2026-08" { capture=1; next }
+            capture && /^## \[/ { exit }
+            capture { print }
+          ' CHANGELOG.md > "$NOTES_PATH"
+
+          if [[ ! -s "$NOTES_PATH" ]]; then
+            echo "DeskPet ${VERSION}" > "$NOTES_PATH"
+          fi
+
+          SHA256="$(shasum -a 256 "$ZIP_PATH" | awk '{print $1}')"
+          {
+            echo
+            echo "## Release validation"
+            echo
+            echo "- GitHub Actions release workflow: PASS"
+            echo "- Swift tests: PASS"
+            echo "- Public repository checks: PASS"
+            echo "- Release build and codesign verification: PASS"
+            echo "- Asset: \`DeskPet-${VERSION}.zip\`"
+            echo "- SHA-256: \`${SHA256}\`"
+            echo
+            echo "> 此 ZIP 使用 ad-hoc 簽章，適合 RC 測試；尚未使用 Apple Developer ID 簽署或 notarize。"
+          } >> "$NOTES_PATH"
+
+      - name: Publish GitHub Release
+        if: env.RELEASE_EXISTS != 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" "$ZIP_PATH" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$RELEASE_TITLE" \
+            --notes-file "$NOTES_PATH" \
+            --prerelease
