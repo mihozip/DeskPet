@@ -81,8 +81,9 @@ cat > "$CONTENTS/Info.plist" <<PLIST
     <key>CFBundleVersion</key><string>$BUILD_NUMBER</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>LSUIElement</key><true/>
-    <key>NSCalendarsUsageDescription</key><string>DeskPet 需要在你確認後建立行事曆事件。</string>
+    <key>NSCalendarsUsageDescription</key><string>DeskPet 需要存取行事曆，以建立你確認的事件並在你主動查詢時整理既有行程。</string>
     <key>NSCalendarsWriteOnlyAccessUsageDescription</key><string>DeskPet 只會在你按下建立按鈕後新增行事曆事件。</string>
+    <key>NSCalendarsFullAccessUsageDescription</key><string>DeskPet 只會在你開啟行事曆智慧查詢時讀取行程，用於本機篩選日期、地點與主題。</string>
     <key>NSRemindersUsageDescription</key><string>DeskPet 需要在你確認後建立提醒事項。</string>
     <key>NSRemindersFullAccessUsageDescription</key><string>DeskPet 只會在你按下建立按鈕後新增提醒事項。</string>
     <key>NSMicrophoneUsageDescription</key><string>DeskPet 需要使用麥克風，將你說的任務操作轉成文字。</string>
