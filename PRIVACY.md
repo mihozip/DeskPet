@@ -32,6 +32,8 @@ Gemini is optional. When enabled, text that requires AI interpretation may be se
 
 The Work Diary itself is not automatically uploaded merely because it exists locally. A future analysis feature must make its transmission scope explicit before sending diary data to an external AI service.
 
+RC1.1 Calendar Intelligence does not send Calendar events to Gemini. Calendar query parsing and event filtering are performed locally.
+
 ## Voice
 
 Voice commands use macOS microphone and Speech Recognition APIs. The transcribed text is passed into the same task-understanding flow. macOS permission prompts apply.
@@ -39,6 +41,10 @@ Voice commands use macOS microphone and Speech Recognition APIs. The transcribed
 ## Calendar and Reminders
 
 DeskPet uses EventKit. It should not write Calendar events or Reminder items until the user confirms the proposed action.
+
+RC1.1 adds a read-only Calendar Intelligence surface. Full Calendar event access is requested only when the user actively performs a calendar query. DeskPet then reads the selected date range from calendars visible to macOS, filters the event title, location, notes and calendar name locally, and displays matching results. Calendar Intelligence does not modify Calendar events.
+
+A Google Calendar is visible to Calendar Intelligence only when it is already available through the macOS Calendar app / EventKit account configuration.
 
 ## Google Apps Script
 
