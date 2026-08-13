@@ -9,18 +9,18 @@
 
 DeskPet 是一隻住在 macOS 桌面的工作代理人。它把快速記事、規則或 Gemini 理解、人工確認、Calendar／Reminders／GAS 任務執行，以及每日工作日誌串成同一條可追蹤的工作流。
 
-**目前版本：1.0.0.0 — RC1 / Daily Work Loop**
+**目前版本：1.1.0.0 — RC1.1 / Calendar Intelligence**
 
-DeskPet 是以 Swift / SwiftUI / AppKit 開發的 macOS 桌面工具。它不是要取代既有的任務系統，而是提供一個隨手可用的桌面入口，把零散資訊轉成可追蹤的工作。
+DeskPet 是以 Swift / SwiftUI / AppKit 開發的 macOS 桌面工具。它不是要取代既有的任務系統，而是提供一個隨手可用的桌面入口，把零散資訊轉成可追蹤的工作，也能在使用者主動查詢時把既有行事曆整理成可讀的工作情境。
 
 ```text
-Capture
+Capture / Query
   ↓
-Inbox
+Inbox / Calendar Intelligence
   ↓
-Understand (local rules / Gemini)
+Understand (local rules / optional Gemini)
   ↓
-Confirm
+Confirm writes / Display read-only results
   ↓
 Calendar / Reminders / GAS Task
   ↓
@@ -34,7 +34,9 @@ Work Diary
 - 桌面常駐 DeskPet，可拖曳、調整大小與動畫強度。
 - 全域快捷鍵快速記事，內容保存於本機 Inbox。
 - Smart Inbox：本機規則解析，亦可選擇啟用 Gemini API。
-- Apple Calendar / Reminders 建立前必須人工確認。
+- Calendar Intelligence：用自然語句查詢 macOS 行事曆，可依年度、月份、地點、關鍵字，以及講師／研習／會議類型整理結果。
+- Calendar Intelligence 的事件內容只在本機解析與篩選，RC1.1 不會將行事曆事件送往 Gemini。
+- Apple Calendar / Reminders 寫入前必須人工確認；行事曆完整讀取權限只在使用者主動查詢時要求。
 - Google Apps Script Gateway：建立、讀取、更新工作任務。
 - Ambient Agent：定期讀取進行中、逾期、高優先與等待任務。
 - Natural Action / Voice Action：自然語句或語音提出任務變更草案，再由使用者確認。
@@ -46,6 +48,23 @@ Work Diary
 - Waiting Radar：以等待對象／狀態與更新時間 heuristic 顯示等待工作，不改寫截止日。
 - Daily Wrap / Weekly Review：完全由原始 `WorkEvent` 重建每日收工與週回顧。
 - Pet Work State / Snooze：工作狀態只提供視覺回饋；稍後提醒只保存本機狀態。
+
+### 行事曆智慧查詢
+
+在白帥帥上按右鍵，選擇「查詢行事曆…」，例如輸入：
+
+```text
+告訴我今年所有研習講師的行程
+下個月有哪些研習
+九月在台中的研習
+今年 AI 行程
+```
+
+未指定日期範圍時，RC1.1 預設查詢當年度。講師行程以 `講師`、`主講`、`授課`、`演講` 等明確角色訊號判斷，並排除 `參加`、`報名`、`學員`、`受訓` 等參與者訊號。若希望辨識更穩定，建議在行程標題使用 `[講師]`，或在備註標示 `角色：講師`。
+
+Google Calendar 必須先在 macOS「行事曆」中可見，DeskPet 才能透過 EventKit 讀取。
+
+完整設計與隱私邊界見：[`docs/RC1_1_CALENDAR_INTELLIGENCE.md`](docs/RC1_1_CALENDAR_INTELLIGENCE.md)
 
 ## 系統需求
 
@@ -107,6 +126,8 @@ DeskPet 不內建 API Key。使用者需在「設定 → AI」自行輸入，秘
 
 目前 UI 提供的 Gemini model ID 以 Google 官方 Gemini API 型號為基礎；模型生命週期可能變更，維護者應在 release 前重新核對官方文件。
 
+RC1.1 Calendar Intelligence 不使用 Gemini 判斷或篩選行事曆事件；查詢資料維持本機處理。
+
 ## Google Apps Script Gateway
 
 公開版本不含任何私人 Spreadsheet ID、Gateway URL 或 API Token。
@@ -144,6 +165,8 @@ DeskPet 依序使用「本機行政職稱覆寫 → Dashboard `ROLE_NAME` → �
 更多資料流與隱私說明：[`PRIVACY.md`](PRIVACY.md)
 
 RC1.0 Daily Work Loop 設計與測試計畫：[`docs/RC1_DAILY_WORK_LOOP.md`](docs/RC1_DAILY_WORK_LOOP.md)、[`docs/RC1_TEST_PLAN.md`](docs/RC1_TEST_PLAN.md)
+
+RC1.1 Calendar Intelligence：[`docs/RC1_1_CALENDAR_INTELLIGENCE.md`](docs/RC1_1_CALENDAR_INTELLIGENCE.md)
 
 ## 專案結構
 
