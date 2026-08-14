@@ -39,7 +39,9 @@ final class PetPanelController: NSWindowController {
             defer: false
         )
 
-        panel.level = .floating
+        // Keep DeskPet visible on the desktop without forcing it above ordinary
+        // application windows. Explicit capture actions can still bring it forward.
+        panel.level = .normal
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isOpaque = false
         panel.backgroundColor = .clear
@@ -47,7 +49,7 @@ final class PetPanelController: NSWindowController {
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
         panel.animationBehavior = .none
-        panel.isFloatingPanel = true
+        panel.isFloatingPanel = false
         panel.ignoresMouseEvents = false
         panel.acceptsMouseMovedEvents = true
         panel.becomesKeyOnlyIfNeeded = false
