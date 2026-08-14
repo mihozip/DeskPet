@@ -1,15 +1,19 @@
 import AppKit
+import Combine
 
 @MainActor
 final class StatusMenuController: NSObject {
     private let statusItem: NSStatusItem
+    private let gasConfiguration: GASTaskConfigurationStore
     private let onQuickCapture: () -> Void
     private let onOpenInbox: () -> Void
     private let onOpenTaskDigest: () -> Void
     private let onOpenCalendarQuery: () -> Void
     private let onOpenSettings: () -> Void
+    private var gasConfigurationCancellable: AnyCancellable?
 
     init(
+        gasConfiguration: GASTaskConfigurationStore,
         onQuickCapture: @escaping () -> Void,
         onOpenInbox: @escaping () -> Void,
         onOpenTaskDigest: @escaping () -> Void,
@@ -17,6 +21,7 @@ final class StatusMenuController: NSObject {
         onOpenSettings: @escaping () -> Void
     ) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        self.gasConfiguration = gasConfiguration
         self.onQuickCapture = onQuickCapture
         self.onOpenInbox = onOpenInbox
         self.onOpenTaskDigest = onOpenTaskDigest
@@ -24,6 +29,12 @@ final class StatusMenuController: NSObject {
         self.onOpenSettings = onOpenSettings
         super.init()
         configureStatusItem()
+
+        gasConfigurationCancellable = gasConfiguration.objectWillChange.sink { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.configureStatusItem()
+            }
+        }
     }
 
     private func configureStatusItem() {
@@ -38,7 +49,9 @@ final class StatusMenuController: NSObject {
         let workItem = NSMenuItem(title: "工作", action: nil, keyEquivalent: "")
         let workMenu = NSMenu(title: "工作")
         workMenu.addItem(makeItem(title: "開啟 Inbox", action: #selector(openInbox)))
-        workMenu.addItem(makeItem(title: "今日工作", action: #selector(openTaskDigest)))
+        if gasConfiguration.isLinked {
+            workMenu.addItem(makeItem(title: "今日工作", action: #selector(openTaskDigest)))
+        }
         workItem.submenu = workMenu
         menu.addItem(workItem)
 
@@ -76,6 +89,7 @@ final class StatusMenuController: NSObject {
     }
 
     @objc private func openTaskDigest() {
+        guard gasConfiguration.isLinked else { return }
         onOpenTaskDigest()
     }
 
