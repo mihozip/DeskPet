@@ -41,9 +41,11 @@ jobs:
           bash -n script/install_local.sh
           bash -n script/install_or_update.sh
           bash -n script/check_public_repo.sh
+          bash -n script/resolve_codesign_identity.sh
           bash -n tests/desktop_interaction_contract.test.sh
           bash -n tests/rc1_1_2_contract.test.sh
           bash -n tests/rc1_1_3_polish_contract.test.sh
+          bash -n tests/apple_permission_contract.test.sh
 
       - name: Validate updater entrypoint
         run: ./tests/updater_cli.test.sh
@@ -56,6 +58,9 @@ jobs:
 
       - name: Validate RC1.1.3 desktop polish contract
         run: bash tests/rc1_1_3_polish_contract.test.sh
+
+      - name: Validate Apple permission and signing contract
+        run: bash tests/apple_permission_contract.test.sh
 
       - name: Validate administrative-title UI
         run: ./tests/administrative_title_ui.test.sh

@@ -13,6 +13,10 @@ CONTENTS="$APP_BUNDLE/Contents"
 MACOS_DIR="$CONTENTS/MacOS"
 RESOURCES_DIR="$CONTENTS/Resources"
 
+# shellcheck source=resolve_codesign_identity.sh
+source "$ROOT_DIR/script/resolve_codesign_identity.sh"
+CODESIGN_IDENTITY="$(deskpet_resolve_codesign_identity)"
+
 cd "$ROOT_DIR"
 
 if [[ -d "/Applications/Xcode.app/Contents/Developer" ]]; then
@@ -80,9 +84,9 @@ cat > "$CONTENTS/Info.plist" <<PLIST
     <key>LSUIElement</key><true/>
     <key>NSCalendarsUsageDescription</key><string>DeskPet 需要存取行事曆，以建立你確認的事件並在你主動查詢時整理既有行程。</string>
     <key>NSCalendarsWriteOnlyAccessUsageDescription</key><string>DeskPet 只會在你按下建立按鈕後新增行事曆事件。</string>
-    <key>NSCalendarsFullAccessUsageDescription</key><string>DeskPet 只會在你開啟行事曆智慧查詢時讀取行程，用於本機篩選日期、地點與主題。</string>
+    <key>NSCalendarsFullAccessUsageDescription</key><string>DeskPet 需要完整行事曆存取，以在你主動查詢時讀取既有行程，並在你確認後建立事件。</string>
     <key>NSRemindersUsageDescription</key><string>DeskPet 需要在你確認後建立提醒事項。</string>
-    <key>NSRemindersFullAccessUsageDescription</key><string>DeskPet 只會在你按下建立按鈕後新增提醒事項。</string>
+    <key>NSRemindersFullAccessUsageDescription</key><string>DeskPet 需要提醒事項完整存取，以在你確認後建立提醒事項。</string>
     <key>NSMicrophoneUsageDescription</key><string>DeskPet 需要使用麥克風，將你說的任務操作轉成文字。</string>
     <key>NSSpeechRecognitionUsageDescription</key><string>DeskPet 需要使用 macOS 語音辨識，將語音命令轉成文字後交給任務理解流程。</string>
     <key>NSPrincipalClass</key><string>NSApplication</string>
@@ -92,7 +96,14 @@ PLIST
 
 /usr/bin/plutil -lint "$CONTENTS/Info.plist" >/dev/null
 /usr/bin/xattr -cr "$APP_BUNDLE" 2>/dev/null || true
-/usr/bin/codesign --force --deep --sign - "$APP_BUNDLE" >/dev/null 2>&1 || true
+if [[ "$CODESIGN_IDENTITY" == "-" ]]; then
+    echo "Signing: ad-hoc (TCC permissions may reset after rebuild)"
+    /usr/bin/codesign --force --deep --sign - "$APP_BUNDLE"
+else
+    echo "Signing: $CODESIGN_IDENTITY"
+    /usr/bin/codesign --force --deep --sign "$CODESIGN_IDENTITY" "$APP_BUNDLE"
+fi
+/usr/bin/codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
 
 echo "DeskPet pet assets:"
 for asset in "${PET_ASSETS[@]}"; do

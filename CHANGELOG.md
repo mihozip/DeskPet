@@ -2,6 +2,25 @@
 
 All notable changes to DeskPet are documented here. Release Candidate interfaces and stored-data formats may still evolve before the final 1.0 release.
 
+## [1.1.3.2] - 2026-08
+
+RC1.1.3.2 rebuilds the Apple permission flow around EventKit's real authorization state and makes local signing more stable for macOS TCC.
+
+### Fixed
+- Calendar and Reminders permission UI now uses `EKEventStore.authorizationStatus(for:)` as the single source of truth instead of temporarily marking a request as granted before macOS reports the new state.
+- Calendar and Reminders retain physically separate `EKEventStore` request paths, while denied permissions now route users to System Settings instead of repeatedly calling an API that macOS will not re-prompt.
+- Calendar Intelligence no longer owns a second permission-request path. Queries require Settings to establish readable Calendar access first and create their `EKEventStore` only after access is confirmed.
+- Calendar write-only access is distinguished from full event access, so DeskPet no longer presents a write-only grant as sufficient for Calendar Intelligence.
+- Permission diagnostics now evaluate typed authorization state rather than inferring success from localized status strings.
+
+### Changed
+- Local debug/release builds and source-based in-app updates now prefer an available `Developer ID Application` identity, then `Apple Development`, and use ad-hoc signing only as a fallback.
+- Self Diagnostics reports whether the running app uses a stable signing authority or an ad-hoc signature that may cause TCC permissions to be requested again after a rebuild or update.
+- Calendar and Reminders usage descriptions were clarified to match the actual full-access behavior.
+
+### Distribution note
+- GitHub-hosted RC builds remain ad-hoc signed until a Developer ID certificate is configured in the release workflow. The application logic is now deterministic, but reliable TCC permission persistence across separately built public RC binaries ultimately requires a stable Apple signing identity.
+
 ## [1.1.3.1] - 2026-08
 
 RC1.1.3.1 Calendar authorization and development-workflow stability update.
