@@ -13,20 +13,26 @@ if [[ "$ACTUAL" != "$EXPECTED" ]]; then
   exit 1
 fi
 
+HANDOFF_LINE="$(grep -nF 'report_progress 88 "準備替換 App；DeskPet 即將重新啟動"' "$UPDATER" | cut -d: -f1)"
 REDIRECT_LINE="$(grep -nF 'exec >> "$PROGRESS_LOG" 2>&1' "$UPDATER" | cut -d: -f1)"
-STOP_LINE="$(grep -nF '/usr/bin/pkill -x DeskPet' "$UPDATER" | cut -d: -f1)"
-if [[ -z "$REDIRECT_LINE" || -z "$STOP_LINE" || "$REDIRECT_LINE" -ge "$STOP_LINE" ]]; then
-  echo "ERROR: updater must detach output before stopping DeskPet" >&2
+WAIT_LINE="$(grep -nF 'Waiting for DeskPet process $WAIT_PID to exit before replacement' "$UPDATER" | cut -d: -f1)"
+OPEN_LINE="$(grep -nF '/usr/bin/open -n "$DESTINATION"' "$UPDATER" | cut -d: -f1)"
+
+if [[ -z "$HANDOFF_LINE" || -z "$REDIRECT_LINE" || -z "$WAIT_LINE" || -z "$OPEN_LINE" ]]; then
+  echo "ERROR: updater hand-off markers are missing" >&2
+  exit 1
+fi
+
+if [[ "$HANDOFF_LINE" -ge "$REDIRECT_LINE" || "$REDIRECT_LINE" -ge "$WAIT_LINE" || "$WAIT_LINE" -ge "$OPEN_LINE" ]]; then
+  echo "ERROR: updater must announce hand-off, detach output, wait for old PID, then launch" >&2
   exit 1
 fi
 
 grep -qF 'DESKPET_PROGRESS_PROTOCOL' "$SERVICE"
 grep -qF 'consumeUpdaterOutput' "$SERVICE"
+grep -qF '"--wait-pid", String(ProcessInfo.processInfo.processIdentifier)' "$SERVICE"
+grep -qF 'NSApp.terminate(nil)' "$SERVICE"
+grep -qF 'stage.contains("準備替換")' "$SERVICE"
 grep -qF 'ProgressView(value: softwareUpdate.installProgress' "$SETTINGS"
 
-if grep -qF '"--wait-pid"' "$SERVICE" || grep -qF 'NSApp.terminate' "$SERVICE"; then
-  echo "ERROR: app-side updater must remain open until the replacement stage" >&2
-  exit 1
-fi
-
-echo "DeskPet visible update progress contract tests passed"
+echo "DeskPet updater hand-off and visible progress contract tests passed"
