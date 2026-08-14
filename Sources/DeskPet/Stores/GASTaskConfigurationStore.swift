@@ -59,6 +59,13 @@ final class GASTaskConfigurationStore: ObservableObject {
         isEnabled && hasAPIToken && endpointURL != nil
     }
 
+    /// True only after the connector is fully configured and a successful
+    /// integration handshake has supplied Dashboard metadata. Menu surfaces use
+    /// this stricter state so half-configured GAS features stay out of the way.
+    var isLinked: Bool {
+        canUseConnector && integrationMetadata != nil
+    }
+
     var categories: [String] {
         nonempty(integrationMetadata?.categories) ?? GASTaskTaxonomy.categories
     }
