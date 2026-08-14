@@ -92,13 +92,8 @@ struct PetRootView: View {
                                 Button("立即同步校務任務系統") {
                                     Task { await ambientMonitor.refresh(manual: true) }
                                 }
+                                Divider()
                             }
-
-                            Button("清理垃圾桶…") {
-                                TrashService.confirmAndEmptyTrash()
-                            }
-
-                            Divider()
 
                             Button("設定…") { onOpenSettings() }
                             Button("系統診斷…") { onOpenDiagnostics() }

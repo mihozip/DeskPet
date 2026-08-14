@@ -30,10 +30,11 @@ final class CalendarQueryService {
 
     func requestFullAccess() async -> Bool {
         do {
+            let granted: Bool
             if #available(macOS 14.0, *) {
-                return try await eventStore.requestFullAccessToEvents()
+                granted = try await eventStore.requestFullAccessToEvents()
             } else {
-                return try await withCheckedThrowingContinuation { continuation in
+                granted = try await withCheckedThrowingContinuation { continuation in
                     eventStore.requestAccess(to: .event) { granted, error in
                         if let error {
                             continuation.resume(throwing: error)
@@ -43,6 +44,13 @@ final class CalendarQueryService {
                     }
                 }
             }
+
+            if granted {
+                // EventKit documents that an existing store may need reset after
+                // authorization changes before it can return newly accessible data.
+                eventStore.reset()
+            }
+            return granted
         } catch {
             return false
         }

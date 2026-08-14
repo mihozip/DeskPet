@@ -2,7 +2,16 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -42,7 +51,7 @@ jobs:
       - name: Validate updater hand-off
         run: ./tests/update_progress_contract.test.sh
 
-      - name: Validate RC1.1.2 integration contract
+      - name: Validate RC1.1.2 permission/menu contract
         run: bash tests/rc1_1_2_contract.test.sh
 
       - name: Validate RC1.1.3 desktop polish contract

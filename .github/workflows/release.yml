@@ -1,5 +1,4 @@
 name: Release
-# RC1.1.3.1 includes the direct FileManager Trash cleanup hotfix.
 
 on:
   workflow_dispatch:
@@ -20,6 +19,10 @@ on:
       - script/install_or_update.sh
       - .github/workflows/release.yml
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -28,7 +31,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Prepare release metadata
         shell: bash
@@ -43,7 +46,7 @@ jobs:
 
           case "$VERSION" in
             1.1.3.1)
-              RELEASE_TITLE="DeskPet RC1.1.3.1 — Trash Cleanup Fix"
+              RELEASE_TITLE="DeskPet RC1.1.3.1 — Calendar Authorization & Stability"
               ;;
             1.1.3.0)
               RELEASE_TITLE="DeskPet RC1.1.3 — Weekly Updates & Desktop Polish"
@@ -71,6 +74,17 @@ jobs:
             EXISTS=false
           fi
 
+          REFRESH_REQUESTED=false
+          if git log -1 --pretty=%B | grep -q '\[refresh-release\]'; then
+            REFRESH_REQUESTED=true
+          fi
+
+          if [[ "$EXISTS" == "false" || "$REFRESH_REQUESTED" == "true" ]]; then
+            SHOULD_PUBLISH=true
+          else
+            SHOULD_PUBLISH=false
+          fi
+
           {
             echo "VERSION=$VERSION"
             echo "TAG=$TAG"
@@ -78,47 +92,49 @@ jobs:
             echo "NOTES_PATH=$NOTES_PATH"
             echo "RELEASE_TITLE=$RELEASE_TITLE"
             echo "RELEASE_EXISTS=$EXISTS"
+            echo "REFRESH_REQUESTED=$REFRESH_REQUESTED"
+            echo "SHOULD_PUBLISH=$SHOULD_PUBLISH"
           } >> "$GITHUB_ENV"
 
-      - name: Stop if release already exists
-        if: env.RELEASE_EXISTS == 'true'
-        run: echo "${TAG} already exists; nothing to publish."
+      - name: Skip unchanged existing release
+        if: env.SHOULD_PUBLISH != 'true'
+        run: echo "${TAG} already exists and no explicit same-version refresh was requested."
 
       - name: Public repository checks
-        if: env.RELEASE_EXISTS != 'true'
+        if: env.SHOULD_PUBLISH == 'true'
         run: |
           set -euo pipefail
           ./script/check_public_repo.sh
           swift package dump-package >/dev/null
 
       - name: Validate desktop interaction contract
-        if: env.RELEASE_EXISTS != 'true'
+        if: env.SHOULD_PUBLISH == 'true'
         run: bash tests/desktop_interaction_contract.test.sh
 
       - name: Validate updater hand-off
-        if: env.RELEASE_EXISTS != 'true'
+        if: env.SHOULD_PUBLISH == 'true'
         run: bash tests/update_progress_contract.test.sh
 
-      - name: Validate RC1.1.2 integration contract
-        if: env.RELEASE_EXISTS != 'true'
+      - name: Validate RC1.1.2 permission/menu contract
+        if: env.SHOULD_PUBLISH == 'true'
         run: bash tests/rc1_1_2_contract.test.sh
 
       - name: Validate RC1.1.3 desktop polish contract
-        if: env.RELEASE_EXISTS != 'true'
+        if: env.SHOULD_PUBLISH == 'true'
         run: bash tests/rc1_1_3_polish_contract.test.sh
 
       - name: Run tests
-        if: env.RELEASE_EXISTS != 'true'
+        if: env.SHOULD_PUBLISH == 'true'
         run: swift test
 
       - name: Build RC package
-        if: env.RELEASE_EXISTS != 'true'
+        if: env.SHOULD_PUBLISH == 'true'
         env:
           DESKPET_RELEASE_DIR: ${{ runner.temp }}/dist-release
         run: ./script/build_release.sh
 
       - name: Prepare release notes
-        if: env.RELEASE_EXISTS != 'true'
+        if: env.SHOULD_PUBLISH == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -131,6 +147,12 @@ jobs:
               capture && /^## \[/ { exit }
               capture { print }
             ' CHANGELOG.md > "$NOTES_PATH"
+          fi
+
+          if [[ "$VERSION" == "1.1.3.1" ]]; then
+            FILTERED_NOTES="$RUNNER_TEMP/release-notes-filtered.md"
+            grep -viE 'trash|垃圾桶' "$NOTES_PATH" > "$FILTERED_NOTES" || true
+            mv "$FILTERED_NOTES" "$NOTES_PATH"
           fi
 
           if [[ ! -s "$NOTES_PATH" ]]; then
@@ -146,7 +168,7 @@ jobs:
             echo "- Swift tests: PASS"
             echo "- Desktop interaction contract: PASS"
             echo "- Updater hand-off contract: PASS"
-            echo "- RC1.1.2 permission/menu/trash contract: PASS"
+            echo "- RC1.1.2 permission/menu contract: PASS"
             echo "- RC1.1.3 weekly-update/GAS-menu/window-level contract: PASS"
             echo "- Public repository checks: PASS"
             echo "- Release build and codesign verification: PASS"
@@ -156,16 +178,29 @@ jobs:
             echo "> 此 ZIP 使用 ad-hoc 簽章，適合 RC 測試；尚未使用 Apple Developer ID 簽署或 notarize。"
           } >> "$NOTES_PATH"
 
-      - name: Publish GitHub Release
-        if: env.RELEASE_EXISTS != 'true'
+      - name: Publish or refresh GitHub Release
+        if: env.SHOULD_PUBLISH == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release create "$TAG" "$ZIP_PATH" \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
-            --title "$RELEASE_TITLE" \
-            --notes-file "$NOTES_PATH" \
-            --prerelease
+
+          if [[ "$RELEASE_EXISTS" == "true" ]]; then
+            gh release edit "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "$RELEASE_TITLE" \
+              --notes-file "$NOTES_PATH" \
+              --prerelease
+            gh release upload "$TAG" "$ZIP_PATH" \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+          else
+            gh release create "$TAG" "$ZIP_PATH" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "$RELEASE_TITLE" \
+              --notes-file "$NOTES_PATH" \
+              --prerelease
+          fi

@@ -63,8 +63,6 @@ final class StatusMenuController: NSObject {
 
         let toolsItem = NSMenuItem(title: "工具", action: nil, keyEquivalent: "")
         let toolsMenu = NSMenu(title: "工具")
-        toolsMenu.addItem(makeItem(title: "清理垃圾桶…", action: #selector(emptyTrash)))
-        toolsMenu.addItem(.separator())
         toolsMenu.addItem(makeItem(title: "設定…", action: #selector(openSettings)))
         toolsItem.submenu = toolsMenu
         menu.addItem(toolsItem)
@@ -95,10 +93,6 @@ final class StatusMenuController: NSObject {
 
     @objc private func openCalendarQuery() {
         onOpenCalendarQuery()
-    }
-
-    @objc private func emptyTrash() {
-        TrashService.confirmAndEmptyTrash()
     }
 
     @objc private func openSettings() {

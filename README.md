@@ -9,7 +9,7 @@
 
 DeskPet 是一隻住在 macOS 桌面的工作代理人。它把快速記事、規則或 Gemini 理解、人工確認、Calendar／Reminders／GAS 任務執行，以及每日工作日誌串成同一條可追蹤的工作流。
 
-**目前版本：1.1.3.1 — RC1.1.3.1 / Trash Cleanup Fix**
+**目前版本：1.1.3.1 — RC1.1.3.1 / Calendar Authorization & Stability**
 
 最新 RC：[`v1.1.3.1`](https://github.com/mihozip/DeskPet/releases/tag/v1.1.3.1)
 
@@ -39,8 +39,9 @@ Work Diary
 - Smart Inbox：本機規則解析，亦可選擇啟用 Gemini API。
 - Calendar Intelligence：用自然語句查詢 macOS 行事曆，可依年度、月份、地點、關鍵字，以及講師／研習／會議類型整理結果。
 - Calendar Intelligence 的事件內容只在本機解析與篩選，不會將行事曆事件送往 Gemini。
-- Apple Calendar / Reminders 權限分離，按哪一個就只要求哪一個；所有寫入前仍必須人工確認。
-- 行事曆完整讀取權限只在使用者主動使用 Calendar Intelligence 時要求。
+- Apple Calendar / Reminders 權限分離：按「行事曆」只要求 Calendar，按「提醒事項」只要求 Reminders，不會互相連帶要求。
+- 因 DeskPet 支援既有行程查詢，Calendar 在 macOS 14+ 使用完整事件存取；Reminders 仍由獨立按鈕要求完整存取。
+- Calendar / Reminders 的新增動作都必須人工確認後才執行。
 - Google Apps Script Gateway：建立、讀取、更新校務工作任務。
 - 校務任務系統為選用整合；未完成串接時，GAS 任務摘要、同步、自然語句任務操作與語音任務操作等相關選單不會出現在桌寵主選單，只保留「設定」中的串接入口。
 - Ambient Agent：完成 GAS 串接後，可定期讀取進行中、逾期、高優先與等待任務。
@@ -54,7 +55,6 @@ Work Diary
 - Daily Wrap / Weekly Review：完全由原始 `WorkEvent` 重建每日收工與週回顧。
 - Pet Work State / Snooze：工作狀態只提供視覺回饋；稍後提醒只保存本機狀態。
 - 每 7 天自動檢查更新；只有偵測到較新版本時才跳出更新提示，可選「立即更新」或「稍後」。
-- 「清理垃圾桶…」會在人工確認後直接清除目前使用者的 `~/.Trash` 與可存取掛載磁碟 `.Trashes/<UID>` 內容，不再依賴 Finder Automation / Apple Events。
 
 ### 桌面互動與選單列備援
 
@@ -66,7 +66,7 @@ RC1.1.3 起，白帥帥不再使用永遠置頂的 floating window level。一�
 
 若桌寵本體遇到互動異常，仍可從 macOS 選單列的腳印圖示進入主要功能。完整互動修補說明見：[`docs/RC1_1_1_DESKTOP_INTERACTION.md`](docs/RC1_1_1_DESKTOP_INTERACTION.md)。
 
-### 行事曆智慧查詢
+### 行事曆智慧查詢與授權
 
 在白帥帥上按右鍵，選擇「查詢與輸入 → 查詢行事曆…」，例如輸入：
 
@@ -79,22 +79,11 @@ RC1.1.3 起，白帥帥不再使用永遠置頂的 floating window level。一�
 
 未指定日期範圍時，Calendar Intelligence 預設查詢當年度。講師行程以 `講師`、`主講`、`授課`、`演講` 等明確角色訊號判斷，並排除 `參加`、`報名`、`學員`、`受訓` 等參與者訊號。若希望辨識更穩定，建議在行程標題使用 `[講師]`，或在備註標示 `角色：講師`。
 
+RC1.1.3.1 將設定頁的 Calendar 權限改為完整事件存取，原因是 DeskPet 不只建立事件，也需要讀取既有事件提供 Calendar Intelligence。Calendar 與 Reminders 仍是兩條完全獨立的 EventKit 授權路徑；要求 Calendar 不會同時要求 Reminders。授權完成後會重新整理 EventKit store，設定頁在顯示以及 App 回到前景時也會重新同步系統權限狀態。
+
 Google Calendar 必須先在 macOS「行事曆」中可見，DeskPet 才能透過 EventKit 讀取。
 
 完整設計與隱私邊界見：[`docs/RC1_1_CALENDAR_INTELLIGENCE.md`](docs/RC1_1_CALENDAR_INTELLIGENCE.md)
-
-### 清理垃圾桶
-
-從「工具 → 清理垃圾桶…」執行。DeskPet 一定會先顯示不可逆刪除確認，只有使用者確認後才開始清理。
-
-RC1.1.3.1 已移除 Finder AppleScript / Automation 相依，改由 `FileManager` 直接處理目前使用者可存取的垃圾桶位置：
-
-```text
-~/.Trash
-/Volumes/<Volume>/.Trashes/<UID>
-```
-
-DeskPet 只刪除辨識為目前使用者垃圾桶目錄底下的項目，不接受任意路徑，也不會自動執行。完成後會明確回報「垃圾桶原本就是空的」、「已刪除幾個項目」、「部分項目失敗」或完整失敗原因。
 
 ## 系統需求
 
@@ -229,7 +218,7 @@ Sources/DeskPet/
 ├── App/        App lifecycle
 ├── Models/     資料模型
 ├── Stores/     狀態與持久化
-├── Services/   Gemini / GAS / EventKit / Speech / Keychain / Trash
+├── Services/   Gemini / GAS / EventKit / Speech / Keychain
 ├── Views/      SwiftUI views
 ├── Window/     AppKit window / panel controllers
 └── Resources/  Default pet artwork
@@ -248,7 +237,7 @@ DeskPet 對外部系統採用這條邊界：
 
 > **AI 可以理解與提出操作；使用者負責授權；Workflow 才負責執行。**
 
-因此讀取與整理可以主動發生，但 Calendar、Reminders 與 GAS 的寫入不應在沒有確認的情況下自動執行。清理垃圾桶屬於不可逆刪除，同樣必須由使用者明確確認後才執行。
+因此讀取與整理可以主動發生，但 Calendar、Reminders 與 GAS 的寫入不應在沒有確認的情況下自動執行。
 
 ## 公開素材
 
