@@ -68,24 +68,33 @@ struct PetRootView: View {
                     )
                     .contextMenu {
                         Button("快速記事（\(shortcutLabel())）") { model.beginCapture() }
-                        Button("開啟 Inbox") { onOpenInbox() }
-                        Button("今日工作") { onOpenTaskDigest() }
-                        Button("每日工作日誌…") { onOpenDiary() }
 
-                        Divider()
-
-                        Button("查詢行事曆…") { onOpenCalendarQuery() }
-                        Button("語音操作（⌃⌥V）") { onOpenVoiceAction() }
-                        Button("自然語句操作…") { onOpenNaturalAction() }
-
-                        Divider()
-
-                        Button("立即同步校務任務系統") {
-                            Task { await ambientMonitor.refresh(manual: true) }
+                        Menu("工作") {
+                            Button("開啟 Inbox") { onOpenInbox() }
+                            Button("今日工作") { onOpenTaskDigest() }
+                            Button("每日工作日誌…") { onOpenDiary() }
                         }
-                        Button("設定…") { onOpenSettings() }
-                        Button("系統診斷…") { onOpenDiagnostics() }
-                        Button("顯示 Inbox JSON") { model.store.revealInboxFile() }
+
+                        Menu("查詢與輸入") {
+                            Button("查詢行事曆…") { onOpenCalendarQuery() }
+                            Button("自然語句操作…") { onOpenNaturalAction() }
+                            Button("語音操作（⌃⌥V）") { onOpenVoiceAction() }
+                        }
+
+                        Menu("工具") {
+                            Button("立即同步校務任務系統") {
+                                Task { await ambientMonitor.refresh(manual: true) }
+                            }
+                            Button("清理垃圾桶…") {
+                                TrashService.confirmAndEmptyTrash()
+                            }
+
+                            Divider()
+
+                            Button("設定…") { onOpenSettings() }
+                            Button("系統診斷…") { onOpenDiagnostics() }
+                            Button("顯示 Inbox JSON") { model.store.revealInboxFile() }
+                        }
 
                         Divider()
 
@@ -95,7 +104,6 @@ struct PetRootView: View {
                             Button("睡覺") { model.sleep() }
                         }
 
-                        Divider()
                         Button("退出 DeskPet") { model.quit() }
                     }
             }
