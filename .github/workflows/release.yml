@@ -149,6 +149,12 @@ jobs:
             ' CHANGELOG.md > "$NOTES_PATH"
           fi
 
+          if [[ "$VERSION" == "1.1.3.1" ]]; then
+            FILTERED_NOTES="$RUNNER_TEMP/release-notes-filtered.md"
+            grep -viE 'trash|垃圾桶' "$NOTES_PATH" > "$FILTERED_NOTES" || true
+            mv "$FILTERED_NOTES" "$NOTES_PATH"
+          fi
+
           if [[ ! -s "$NOTES_PATH" ]]; then
             echo "DeskPet ${VERSION}" > "$NOTES_PATH"
           fi
