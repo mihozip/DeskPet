@@ -9,7 +9,7 @@
 
 DeskPet 是一隻住在 macOS 桌面的工作代理人。它把快速記事、規則或 Gemini 理解、人工確認、Calendar／Reminders／GAS 任務執行，以及每日工作日誌串成同一條可追蹤的工作流。
 
-**目前版本：1.1.0.0 — RC1.1 / Calendar Intelligence**
+**目前版本：1.1.1.0 — RC1.1.1 / Desktop Interaction Fix**
 
 DeskPet 是以 Swift / SwiftUI / AppKit 開發的 macOS 桌面工具。它不是要取代既有的任務系統，而是提供一個隨手可用的桌面入口，把零散資訊轉成可追蹤的工作，也能在使用者主動查詢時把既有行事曆整理成可讀的工作情境。
 
@@ -31,7 +31,7 @@ Work Diary
 
 ## 主要功能
 
-- 桌面常駐 DeskPet，可拖曳、調整大小與動畫強度。
+- 桌面常駐 DeskPet，可拖曳、調整大小與動畫強度；另提供選單列腳印入口作為操作備援。
 - 全域快捷鍵快速記事，內容保存於本機 Inbox。
 - Smart Inbox：本機規則解析，亦可選擇啟用 Gemini API。
 - Calendar Intelligence：用自然語句查詢 macOS 行事曆，可依年度、月份、地點、關鍵字，以及講師／研習／會議類型整理結果。
@@ -48,6 +48,12 @@ Work Diary
 - Waiting Radar：以等待對象／狀態與更新時間 heuristic 顯示等待工作，不改寫截止日。
 - Daily Wrap / Weekly Review：完全由原始 `WorkEvent` 重建每日收工與週回顧。
 - Pet Work State / Snooze：工作狀態只提供視覺回饋；稍後提醒只保存本機狀態。
+
+### 桌面互動與選單列備援
+
+RC1.1.1 修正部分新版 macOS／Apple Silicon 機型上「白帥帥有顯示，但像一張無法點擊的浮動 PNG」的互動問題。桌寵視窗現在會明確接收第一下滑鼠事件，快速記事快捷鍵也改綁 application event target。
+
+如果未來遇到桌寵本體無法點擊，仍可從 macOS 選單列的腳印圖示進入「快速記事」、「Inbox」、「今日工作」、「查詢行事曆」與「設定」。完整修補說明見：[`docs/RC1_1_1_DESKTOP_INTERACTION.md`](docs/RC1_1_1_DESKTOP_INTERACTION.md)。
 
 ### 行事曆智慧查詢
 
@@ -167,6 +173,8 @@ DeskPet 依序使用「本機行政職稱覆寫 → Dashboard `ROLE_NAME` → �
 RC1.0 Daily Work Loop 設計與測試計畫：[`docs/RC1_DAILY_WORK_LOOP.md`](docs/RC1_DAILY_WORK_LOOP.md)、[`docs/RC1_TEST_PLAN.md`](docs/RC1_TEST_PLAN.md)
 
 RC1.1 Calendar Intelligence：[`docs/RC1_1_CALENDAR_INTELLIGENCE.md`](docs/RC1_1_CALENDAR_INTELLIGENCE.md)
+
+RC1.1.1 Desktop Interaction Fix：[`docs/RC1_1_1_DESKTOP_INTERACTION.md`](docs/RC1_1_1_DESKTOP_INTERACTION.md)
 
 ## 專案結構
 
