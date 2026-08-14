@@ -2,6 +2,20 @@
 
 All notable changes to DeskPet are documented here. Release Candidate interfaces and stored-data formats may still evolve before the final 1.0 release.
 
+## [1.1.3.1] - 2026-08
+
+RC1.1.3.1 trash-cleanup reliability hotfix.
+
+### Fixed
+- Replaced Finder AppleScript trash cleanup with direct `FileManager` removal from the current user's `~/.Trash` and accessible mounted-volume `.Trashes/<UID>` directories.
+- Trash cleanup no longer depends on Finder Automation / Apple Events permission, which could fail silently or be unavailable for ad-hoc RC builds.
+- Cleanup now runs off the main thread and reports empty Trash, successful deletion count, partial failures, or complete failure explicitly.
+- Removed the obsolete Finder Apple Events usage description from debug and release app bundles.
+
+### Safety
+- Empty Trash remains destructive and always requires explicit confirmation before any deletion begins.
+- DeskPet only deletes children of recognized per-user Trash directories; it never recursively targets arbitrary user-selected paths.
+
 ## [1.1.3.0] - 2026-08
 
 Release Candidate 1.1.3 — Weekly Updates, Contextual GAS Menus and Non-Blocking Desktop Presence.
@@ -112,7 +126,7 @@ Release Candidate 1 — Daily Work Loop.
 
 ### Changed
 - Unified role-specific UI labels and GAS task ownership under the administrative title, resolved as local override → Dashboard `ROLE_NAME` → `總務` fallback.
-- Workbench, work digest, work reminder, task-action, natural-language and duplicate-check UI now use the same administrative title.
+- Workbench, work digest, reminder, task-action, natural-language and duplicate-check UI now use the same administrative title.
 - Moved administrative-title editing to General settings and removed the separate work-interface-name control.
 
 ### Migration
