@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct SettingsView: View {
@@ -47,6 +48,12 @@ struct SettingsView: View {
             }
         }
         .frame(minWidth: 700, minHeight: 650)
+        .onAppear {
+            actionService.refreshAuthorizationStatus()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            actionService.refreshAuthorizationStatus()
+        }
     }
 
     private var header: some View {
@@ -272,7 +279,7 @@ struct SettingsView: View {
                     Text(actionService.calendarStatusText).foregroundStyle(.secondary)
                     Spacer()
                     Button(model.isRequestingCalendar ? "要求中…" : "要求權限") { model.requestCalendarAccess() }
-                        .disabled(model.isRequestingCalendar)
+                        .disabled(model.isRequestingCalendar || model.isRequestingReminders)
                 }
 
                 HStack {
@@ -280,10 +287,10 @@ struct SettingsView: View {
                     Text(actionService.remindersStatusText).foregroundStyle(.secondary)
                     Spacer()
                     Button(model.isRequestingReminders ? "要求中…" : "要求權限") { model.requestRemindersAccess() }
-                        .disabled(model.isRequestingReminders)
+                        .disabled(model.isRequestingCalendar || model.isRequestingReminders)
                 }
 
-                Text("DeskPet 只在你按下確認建立後才寫入 Calendar / Reminders。")
+                Text("行事曆與提醒事項分開授權。行事曆因支援既有行程查詢會要求完整存取；提醒事項只在你單獨按下其權限按鈕時要求。Calendar / Reminders 的新增仍只會在你確認建立後執行。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
