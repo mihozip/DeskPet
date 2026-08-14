@@ -27,9 +27,10 @@ Usage:
                        [--wait-pid PID]
                        [--no-launch]
 
-The updater builds the latest source with the local Apple Swift toolchain,
-verifies the new app before replacement, and restores the previous app if
-installation fails. User data and Keychain credentials are not removed.
+The updater downloads and builds the latest source while DeskPet stays open.
+At replacement time it waits for the specified DeskPet PID to exit, then
+replaces the bundle and launches exactly one new instance. User data and
+Keychain credentials are not removed.
 USAGE
 }
 
@@ -71,11 +72,14 @@ if [[ "$(basename "$DESTINATION")" != "DeskPet.app" ]]; then
   exit 2
 fi
 
-for command_path in /usr/bin/curl /usr/bin/ditto /usr/bin/codesign /usr/bin/xcrun /usr/bin/open /usr/bin/xattr /usr/bin/pkill /usr/libexec/PlistBuddy; do
+for command_path in /usr/bin/curl /usr/bin/ditto /usr/bin/codesign /usr/bin/xcrun /usr/bin/open /usr/bin/xattr /usr/bin/pkill /usr/bin/pgrep /usr/libexec/PlistBuddy; do
   [[ -x "$command_path" ]] || { echo "ERROR: required tool is missing: $command_path" >&2; exit 1; }
 done
 command -v swift >/dev/null 2>&1 || { echo "ERROR: Swift toolchain is required. Install Xcode or Apple Command Line Tools." >&2; exit 1; }
 report_progress 5 "準備更新環境"
+if [[ -n "$WAIT_PID" ]]; then
+  report_progress 8 "已準備 DeskPet 更新交接"
+fi
 
 UPDATE_TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/deskpet-update.XXXXXX")"
 SOURCE_DIR="$UPDATE_TEMP_DIR/source"
@@ -97,19 +101,6 @@ cleanup_and_rollback() {
   exit "$exit_code"
 }
 trap cleanup_and_rollback EXIT
-
-if [[ -n "$WAIT_PID" ]]; then
-  report_progress 8 "等待 DeskPet 關閉"
-  echo "Waiting for DeskPet process $WAIT_PID to exit…"
-  wait_deadline=$((SECONDS + 30))
-  while /bin/kill -0 "$WAIT_PID" 2>/dev/null; do
-    if [[ "$SECONDS" -ge "$wait_deadline" ]]; then
-      echo "ERROR: DeskPet did not exit within 30 seconds" >&2
-      exit 1
-    fi
-    /bin/sleep 1
-  done
-fi
 
 echo "Downloading latest DeskPet source from GitHub…"
 report_progress 10 "正在下載最新原始碼"
@@ -158,14 +149,38 @@ NEW_APP="$PROJECT_DIR/dist-release/DeskPet.app"
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$NEW_APP"
 report_progress 82 "新版本簽章驗證完成"
 
+# This is the hand-off point. The running app sees this message, schedules a
+# normal NSApp.terminate(), and this updater immediately detaches its output.
+# Only after the old process is confirmed gone do we replace the bundle.
 report_progress 88 "準備替換 App；DeskPet 即將重新啟動"
-if [[ "$PROGRESS_PROTOCOL" == "1" ]]; then
-  /bin/sleep 1
-  if [[ "$PROGRESS_LOG" == /* ]]; then
-    exec >> "$PROGRESS_LOG" 2>&1
-  fi
+if [[ "$PROGRESS_PROTOCOL" == "1" && "$PROGRESS_LOG" == /* ]]; then
+  exec >> "$PROGRESS_LOG" 2>&1
 fi
-/usr/bin/pkill -x DeskPet 2>/dev/null || true
+
+if [[ -n "$WAIT_PID" ]]; then
+  echo "Waiting for DeskPet process $WAIT_PID to exit before replacement…"
+  wait_deadline=$((SECONDS + 30))
+  while /bin/kill -0 "$WAIT_PID" 2>/dev/null; do
+    if [[ "$SECONDS" -ge "$wait_deadline" ]]; then
+      echo "ERROR: DeskPet did not exit within 30 seconds" >&2
+      exit 1
+    fi
+    /bin/sleep 1
+  done
+else
+  # Standalone/manual updater fallback: stop any currently running DeskPet and
+  # wait until no old instance remains before launching the replacement.
+  /usr/bin/pkill -x DeskPet 2>/dev/null || true
+  wait_deadline=$((SECONDS + 30))
+  while /usr/bin/pgrep -x DeskPet >/dev/null 2>&1; do
+    if [[ "$SECONDS" -ge "$wait_deadline" ]]; then
+      echo "ERROR: running DeskPet processes did not exit within 30 seconds" >&2
+      exit 1
+    fi
+    /bin/sleep 1
+  done
+fi
+
 mkdir -p "$(dirname "$DESTINATION")"
 if [[ -d "$DESTINATION" ]]; then
   report_progress 90 "正在備份目前版本"
