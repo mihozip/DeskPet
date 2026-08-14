@@ -143,6 +143,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         settingsWindowController = settingsController
 
+        softwareUpdate.onUpdateAvailable = { [weak self, weak settingsController] version in
+            guard let self else { return }
+
+            NSApp.activate(ignoringOtherApps: true)
+            let alert = NSAlert()
+            alert.alertStyle = .informational
+            alert.messageText = "白帥帥有新版本"
+            alert.informativeText = "DeskPet \(version) 已可更新。目前版本為 \(self.softwareUpdate.currentVersion)。"
+            alert.addButton(withTitle: "立即更新")
+            alert.addButton(withTitle: "稍後")
+
+            if alert.runModal() == .alertFirstButtonReturn {
+                settingsController?.showSettings()
+                self.softwareUpdate.installAvailableUpdate()
+            }
+        }
+
         let panelController = PetPanelController(
             store: store,
             ambientMonitor: ambientMonitor,
@@ -164,6 +181,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panelController.show()
 
         statusMenuController = StatusMenuController(
+            gasConfiguration: gasConfiguration,
             onQuickCapture: { [weak panelController] in panelController?.showCapture() },
             onOpenInbox: { [weak inboxController] in inboxController?.showInbox() },
             onOpenTaskDigest: { [weak digestController] in digestController?.showDigest() },
@@ -172,7 +190,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
 
         ambientMonitor.start()
-        softwareUpdate.checkIfDue()
+        softwareUpdate.startAutomaticChecking()
 
         let registered = hotKeyService.register { [weak panelController] in panelController?.showCapture() }
         if !registered {
@@ -181,7 +199,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let voiceHotKeyService = VoiceHotKeyService()
         self.voiceHotKeyService = voiceHotKeyService
-        let voiceRegistered = voiceHotKeyService.register { [weak naturalActionController] in
+        let voiceRegistered = voiceHotKeyService.register { [weak naturalActionController, weak self] in
+            guard self?.gasConfiguration.isLinked == true else { return }
             naturalActionController?.showCommandWindow(autoStartVoice: true)
         }
         if !voiceRegistered {
@@ -192,6 +211,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         panelController?.persistCurrentPosition()
         ambientMonitor.stop()
+        softwareUpdate.stopAutomaticChecking()
         hotKeyService?.unregister()
         voiceHotKeyService?.unregister()
     }
