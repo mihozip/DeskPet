@@ -16,7 +16,13 @@ CONTENTS="$APP_BUNDLE/Contents"
 MACOS_DIR="$CONTENTS/MacOS"
 RESOURCES_DIR="$CONTENTS/Resources"
 ZIP_PATH="$DIST_DIR/DeskPet-${VERSION}.zip"
-CODESIGN_IDENTITY="${CODESIGN_IDENTITY:--}"
+
+# A stable signing identity is important for macOS TCC permissions. Local builds
+# and the source-based updater reuse Developer ID / Apple Development when the
+# current Mac has one. CI without a configured identity still falls back to ad-hoc.
+# shellcheck source=resolve_codesign_identity.sh
+source "$ROOT_DIR/script/resolve_codesign_identity.sh"
+CODESIGN_IDENTITY="$(deskpet_resolve_codesign_identity)"
 
 cd "$ROOT_DIR"
 
@@ -83,9 +89,9 @@ cat > "$CONTENTS/Info.plist" <<PLIST
     <key>LSUIElement</key><true/>
     <key>NSCalendarsUsageDescription</key><string>DeskPet 需要存取行事曆，以建立你確認的事件並在你主動查詢時整理既有行程。</string>
     <key>NSCalendarsWriteOnlyAccessUsageDescription</key><string>DeskPet 只會在你按下建立按鈕後新增行事曆事件。</string>
-    <key>NSCalendarsFullAccessUsageDescription</key><string>DeskPet 只會在你開啟行事曆智慧查詢時讀取行程，用於本機篩選日期、地點與主題。</string>
+    <key>NSCalendarsFullAccessUsageDescription</key><string>DeskPet 需要完整行事曆存取，以在你主動查詢時讀取既有行程，並在你確認後建立事件。</string>
     <key>NSRemindersUsageDescription</key><string>DeskPet 需要在你確認後建立提醒事項。</string>
-    <key>NSRemindersFullAccessUsageDescription</key><string>DeskPet 只會在你按下建立按鈕後新增提醒事項。</string>
+    <key>NSRemindersFullAccessUsageDescription</key><string>DeskPet 需要提醒事項完整存取，以在你確認後建立提醒事項。</string>
     <key>NSMicrophoneUsageDescription</key><string>DeskPet 需要使用麥克風，將你說的任務操作轉成文字。</string>
     <key>NSSpeechRecognitionUsageDescription</key><string>DeskPet 需要使用 macOS 語音辨識，將語音命令轉成文字後交給任務理解流程。</string>
     <key>NSPrincipalClass</key><string>NSApplication</string>
@@ -95,7 +101,7 @@ PLIST
 
 /usr/bin/plutil -lint "$CONTENTS/Info.plist" >/dev/null
 if [[ "$CODESIGN_IDENTITY" == "-" ]]; then
-    echo "Signing: ad-hoc (local/RC testing only)"
+    echo "Signing: ad-hoc (TCC permissions may need re-authorization after rebuild/update)"
     CODESIGN_ARGS=(--force --deep --sign -)
 else
     echo "Signing: $CODESIGN_IDENTITY"
@@ -137,7 +143,7 @@ echo
 printf 'Release App: %s\n' "$APP_BUNDLE"
 printf 'Release ZIP: %s\n' "$ZIP_PATH"
 if [[ "$CODESIGN_IDENTITY" == "-" ]]; then
-    echo "NOTE: This build is ad-hoc signed. It is suitable for local RC testing, not public distribution/notarization."
+    echo "NOTE: This build is ad-hoc signed. TCC permission persistence across different builds is not guaranteed."
 else
-    echo "NOTE: Developer ID signed. Run Apple notarization before public distribution."
+    echo "NOTE: Signed with stable identity: $CODESIGN_IDENTITY"
 fi
