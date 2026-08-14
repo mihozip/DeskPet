@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Release contract for RC1.1.3 desktop-polish behavior.
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 UPDATE_SERVICE="$ROOT_DIR/Sources/DeskPet/Services/SoftwareUpdateService.swift"
 APP_DELEGATE="$ROOT_DIR/Sources/DeskPet/App/AppDelegate.swift"
