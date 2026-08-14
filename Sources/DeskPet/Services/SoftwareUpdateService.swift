@@ -27,16 +27,21 @@ final class SoftwareUpdateService: ObservableObject {
     @Published private(set) var installProgress = 0.0
     @Published private(set) var installStage = ""
 
+    var onUpdateAvailable: ((String) -> Void)?
+
     let currentVersion: String
 
     private static let versionURL = URL(string: "https://raw.githubusercontent.com/mihozip/DeskPet/main/VERSION")!
     private static let lastAutomaticCheckKey = "DeskPet.softwareUpdate.lastAutomaticCheck.v1"
+    private static let automaticCheckInterval: TimeInterval = 7 * 24 * 60 * 60
+    private static let duePollingNanoseconds: UInt64 = 60 * 60 * 1_000_000_000
     private let session: URLSession
     private var updateProcess: Process?
     private var updateLogHandle: FileHandle?
     private var updateOutputPipe: Pipe?
     private var updateOutputBuffer = Data()
     private var hasRequestedTerminationForUpdate = false
+    private var automaticCheckTask: Task<Void, Never>?
 
     init(session: URLSession = .shared) {
         self.session = session
@@ -51,9 +56,26 @@ final class SoftwareUpdateService: ObservableObject {
         Int((installProgress * 100).rounded())
     }
 
+    /// Keeps a lightweight local due-check running while DeskPet is open. The
+    /// network request itself is still gated to once every seven days.
+    func startAutomaticChecking() {
+        automaticCheckTask?.cancel()
+        automaticCheckTask = Task { [weak self] in
+            while !Task.isCancelled {
+                self?.checkIfDue()
+                try? await Task.sleep(nanoseconds: Self.duePollingNanoseconds)
+            }
+        }
+    }
+
+    func stopAutomaticChecking() {
+        automaticCheckTask?.cancel()
+        automaticCheckTask = nil
+    }
+
     func checkIfDue() {
         let lastCheck = UserDefaults.standard.object(forKey: Self.lastAutomaticCheckKey) as? Date
-        if let lastCheck, Date().timeIntervalSince(lastCheck) < 86_400 { return }
+        if let lastCheck, Date().timeIntervalSince(lastCheck) < Self.automaticCheckInterval { return }
         Task { await checkForUpdates(isAutomatic: true) }
     }
 
@@ -82,6 +104,9 @@ final class SoftwareUpdateService: ObservableObject {
             if Self.compareVersions(latestVersion, currentVersion) == .orderedDescending {
                 availableVersion = latestVersion
                 statusMessage = "有新版本：\(latestVersion)（目前 \(currentVersion)）"
+                if isAutomatic {
+                    onUpdateAvailable?(latestVersion)
+                }
             } else {
                 availableVersion = nil
                 statusMessage = "已是最新版本：\(currentVersion)"
@@ -199,10 +224,6 @@ final class SoftwareUpdateService: ObservableObject {
         installStage = "準備重新啟動"
         statusMessage = "新版已建置完成；DeskPet 將先關閉，更新器確認舊程序結束後才啟動新版。"
 
-        // The updater redirects its stdout/stderr away from this process immediately
-        // after the 88% hand-off message. Give that redirect a brief moment to settle,
-        // then terminate this exact process. The updater waits on our PID before it
-        // replaces the app bundle, preventing old/new DeskPet instances from overlap.
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 350_000_000)
             NSApp.terminate(nil)
