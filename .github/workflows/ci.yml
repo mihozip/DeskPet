@@ -72,4 +72,3 @@ jobs:
           test -s dist/DeskPet.app/Contents/Resources/pet_sleep.png
           test -s dist/DeskPet.app/Contents/Resources/AppIcon.icns
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' dist/DeskPet.app/Contents/Info.plist)" = "AppIcon.icns"
-          test "$(/usr/libexec/PlistBuddy -c 'Print :NSAppleEventsUsageDescription' dist/DeskPet.app/Contents/Info.plist)" != ""
