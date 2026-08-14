@@ -34,11 +34,28 @@ final class StatusMenuController: NSObject {
 
         let menu = NSMenu()
         menu.addItem(makeItem(title: "快速記事", action: #selector(quickCapture)))
-        menu.addItem(makeItem(title: "開啟 Inbox", action: #selector(openInbox)))
-        menu.addItem(makeItem(title: "今日工作", action: #selector(openTaskDigest)))
-        menu.addItem(makeItem(title: "查詢行事曆…", action: #selector(openCalendarQuery)))
-        menu.addItem(.separator())
-        menu.addItem(makeItem(title: "設定…", action: #selector(openSettings)))
+
+        let workItem = NSMenuItem(title: "工作", action: nil, keyEquivalent: "")
+        let workMenu = NSMenu(title: "工作")
+        workMenu.addItem(makeItem(title: "開啟 Inbox", action: #selector(openInbox)))
+        workMenu.addItem(makeItem(title: "今日工作", action: #selector(openTaskDigest)))
+        workItem.submenu = workMenu
+        menu.addItem(workItem)
+
+        let queryItem = NSMenuItem(title: "查詢", action: nil, keyEquivalent: "")
+        let queryMenu = NSMenu(title: "查詢")
+        queryMenu.addItem(makeItem(title: "查詢行事曆…", action: #selector(openCalendarQuery)))
+        queryItem.submenu = queryMenu
+        menu.addItem(queryItem)
+
+        let toolsItem = NSMenuItem(title: "工具", action: nil, keyEquivalent: "")
+        let toolsMenu = NSMenu(title: "工具")
+        toolsMenu.addItem(makeItem(title: "清理垃圾桶…", action: #selector(emptyTrash)))
+        toolsMenu.addItem(.separator())
+        toolsMenu.addItem(makeItem(title: "設定…", action: #selector(openSettings)))
+        toolsItem.submenu = toolsMenu
+        menu.addItem(toolsItem)
+
         menu.addItem(.separator())
         menu.addItem(makeItem(title: "退出 DeskPet", action: #selector(quit)))
         statusItem.menu = menu
@@ -64,6 +81,10 @@ final class StatusMenuController: NSObject {
 
     @objc private func openCalendarQuery() {
         onOpenCalendarQuery()
+    }
+
+    @objc private func emptyTrash() {
+        TrashService.confirmAndEmptyTrash()
     }
 
     @objc private func openSettings() {
