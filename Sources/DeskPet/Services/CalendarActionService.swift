@@ -30,9 +30,9 @@ final class CalendarActionService: ObservableObject {
     @Published private(set) var calendarStatusText = "尚未檢查"
     @Published private(set) var remindersStatusText = "尚未檢查"
 
-    // Keep EventKit entry points physically separate. Authorization is system-wide
-    // per entity type, but separate stores make it impossible for a Calendar button
-    // path to accidentally reuse the Reminders request path (and vice versa).
+    // Calendar and Reminders are different EventKit entity types. Keep their
+    // request paths physically separate so pressing one permission button can
+    // never invoke the other entity's authorization API.
     private let calendarStore = EKEventStore()
     private let remindersStore = EKEventStore()
 
@@ -59,16 +59,22 @@ final class CalendarActionService: ObservableObject {
         )
     }
 
+    /// DeskPet includes Calendar Intelligence, so the Calendar integration needs
+    /// full event access rather than write-only access. This request is Calendar
+    /// only; it does not request or modify Reminders authorization.
     func requestCalendarAccess() async -> Bool {
         do {
             let granted: Bool
             if #available(macOS 14.0, *) {
-                granted = try await calendarStore.requestWriteOnlyAccessToEvents()
+                granted = try await calendarStore.requestFullAccessToEvents()
             } else {
                 granted = try await requestLegacyAccess(to: .event, store: calendarStore)
             }
 
             if granted {
+                // Refresh the store after TCC changes so a store created before
+                // authorization doesn't keep stale Calendar source state.
+                calendarStore.reset()
                 markGrantedImmediately(for: .event)
                 reconcileAuthorizationStatus(for: .event)
             } else {
@@ -91,6 +97,7 @@ final class CalendarActionService: ObservableObject {
             }
 
             if granted {
+                remindersStore.reset()
                 markGrantedImmediately(for: .reminder)
                 reconcileAuthorizationStatus(for: .reminder)
             } else {
@@ -183,7 +190,7 @@ final class CalendarActionService: ObservableObject {
     private func markGrantedImmediately(for entityType: EKEntityType) {
         if #available(macOS 14.0, *) {
             if entityType == .event {
-                calendarStatusText = "僅寫入已授權"
+                calendarStatusText = "完整存取已授權"
             } else {
                 remindersStatusText = "完整存取已授權"
             }
@@ -194,8 +201,9 @@ final class CalendarActionService: ObservableObject {
         }
     }
 
-    /// EventKit may return `granted` before TCC's authorizationStatus catches up.
-    /// Preserve the confirmed result, then reconcile only the requested entity.
+    /// EventKit can complete an authorization request before
+    /// `authorizationStatus(for:)` visibly catches up. Preserve the confirmed
+    /// result, then reconcile only the entity the user actually requested.
     private func reconcileAuthorizationStatus(for entityType: EKEntityType) {
         Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 500_000_000)
@@ -244,7 +252,7 @@ final class CalendarActionService: ObservableObject {
             case .fullAccess:
                 return "完整存取已授權"
             case .writeOnly:
-                return entityType == .event ? "僅寫入已授權" : "僅寫入"
+                return entityType == .event ? "僅寫入已授權（建議升級完整存取）" : "僅寫入"
             @unknown default:
                 return "未知狀態"
             }
