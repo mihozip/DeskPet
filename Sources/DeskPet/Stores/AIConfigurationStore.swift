@@ -17,14 +17,17 @@ final class AIConfigurationStore: ObservableObject {
         static let apiKey = "gemini-api-key"
     }
 
-    static let defaultModelID = "gemini-2.5-flash"
+    /// Prefer the newest stable Flash model currently exposed by the Gemini API.
+    static let defaultModelID = "gemini-3.6-flash"
 
+    /// Keep the picker limited to the current Gemini 3.5+ production models that
+    /// fit DeskPet's text/structured-output workflows. Gemini 2.x options are
+    /// intentionally retired from the UI. No Gemini 3.7 API model is published
+    /// by Google at the time of this release, so no speculative model ID is added.
     static let modelOptions: [ModelOption] = [
-        ModelOption(id: "gemini-3.6-flash", name: "Gemini 3.6 Flash（最新／Agent 強化）"),
-        ModelOption(id: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash-Lite（省成本）"),
-        ModelOption(id: "gemini-2.5-flash", name: "Gemini 2.5 Flash（穩定相容）"),
-        ModelOption(id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash-Lite（舊版省成本）"),
-        ModelOption(id: "gemini-2.5-pro", name: "Gemini 2.5 Pro（較高品質）")
+        ModelOption(id: "gemini-3.6-flash", name: "Gemini 3.6 Flash（最新／建議）"),
+        ModelOption(id: "gemini-3.5-flash", name: "Gemini 3.5 Flash（高品質）"),
+        ModelOption(id: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash-Lite（快速／省成本）")
     ]
 
     @Published private(set) var hasAPIKey = false
@@ -57,6 +60,7 @@ final class AIConfigurationStore: ObservableObject {
     private let keychain = KeychainService(service: Bundle.main.bundleIdentifier ?? "DeskPet")
 
     init() {
+        migrateRetiredModelSelectionIfNeeded()
         refreshKeyStatus()
     }
 
@@ -90,5 +94,13 @@ final class AIConfigurationStore: ObservableObject {
             hasAPIKey = false
             statusMessage = error.localizedDescription
         }
+    }
+
+    private func migrateRetiredModelSelectionIfNeeded() {
+        guard let saved = UserDefaults.standard.string(forKey: DefaultsKey.modelID),
+              !Self.modelOptions.contains(where: { $0.id == saved }) else {
+            return
+        }
+        UserDefaults.standard.set(Self.defaultModelID, forKey: DefaultsKey.modelID)
     }
 }
