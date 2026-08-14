@@ -2,6 +2,15 @@
 
 All notable changes to DeskPet are documented here. Release Candidate interfaces and stored-data formats may still evolve before the final 1.0 release.
 
+## [1.1.1.1] - 2026-08
+
+RC1.1.1 permission-status refresh patch.
+
+### Fixed
+- Calendar and Reminders permission rows now update immediately when the EventKit request API returns success instead of requiring an app restart.
+- Added a delayed EventKit/TCC reconciliation pass so the displayed state catches up with the system authorization status without overwriting a confirmed grant with a transient `notDetermined` value.
+- Existing permission scope is unchanged: Calendar Action Layer requests write-only event access on macOS 14+ and Reminders requests full access.
+
 ## [1.1.0.0] - 2026-08
 
 Release Candidate 1.1 — Calendar Intelligence.
