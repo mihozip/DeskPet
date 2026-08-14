@@ -45,10 +45,7 @@ struct GeminiIntentInterpreter {
     private struct APIResponse: Decodable {
         struct Candidate: Decodable {
             struct Content: Decodable {
-                struct Part: Decodable {
-                    let text: String?
-                }
-
+                typealias Part = GeminiResponseParser.TextPart
                 let parts: [Part]?
             }
 
@@ -119,16 +116,25 @@ struct GeminiIntentInterpreter {
         }
 
         guard let candidate = envelope.candidates?.first,
-              let parts = candidate.content?.parts,
-              let jsonText = parts.compactMap(\.text).first(where: { !$0.isEmpty }),
-              let jsonData = jsonText.data(using: .utf8) else {
+              let parts = candidate.content?.parts else {
             if let finishReason = envelope.candidates?.first?.finishReason, !finishReason.isEmpty {
                 throw InterpreterError.blocked(finishReason)
             }
             throw InterpreterError.invalidResponse
         }
 
-        let result = try JSONDecoder().decode(AIResult.self, from: jsonData)
+        if candidate.finishReason == "MAX_TOKENS" {
+            throw InterpreterError.blocked("Gemini 回應因輸出長度不足而被截斷，請再試一次")
+        }
+
+        guard let jsonText = GeminiResponseParser.finalAnswerText(from: parts) else {
+            if let finishReason = candidate.finishReason, !finishReason.isEmpty, finishReason != "STOP" {
+                throw InterpreterError.blocked(finishReason)
+            }
+            throw GeminiResponseParser.ParseError.missingAnswer
+        }
+
+        let result = try GeminiResponseParser.decodeStructuredOutput(AIResult.self, from: jsonText)
         guard let kind = CaptureKind(rawValue: chineseKind(from: result.kind)) else {
             throw InterpreterError.invalidResponse
         }
@@ -212,7 +218,8 @@ struct GeminiIntentInterpreter {
                 "parts": [["text": text]]
             ]],
             "generationConfig": [
-                "maxOutputTokens": 300,
+                "maxOutputTokens": 1200,
+                "thinkingConfig": ["thinkingLevel": "minimal"],
                 "responseMimeType": "application/json",
                 "responseJsonSchema": schema
             ]
