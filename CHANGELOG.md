@@ -2,6 +2,27 @@
 
 All notable changes to DeskPet are documented here. Release Candidate interfaces and stored-data formats may still evolve before the final 1.0 release.
 
+## [1.1.2.0] - 2026-08
+
+Release Candidate 1.1.2 — Permission Isolation, Safe Update Handoff and Compact Menu.
+
+### Added
+- Added a confirmation-gated `清理垃圾桶…` command under the Tools menu. DeskPet asks again before permanently deleting Trash contents and only then sends Finder the empty-trash command.
+- Added the required Apple Events usage description for the Finder automation used by Trash cleanup.
+
+### Changed
+- Consolidated the white DeskPet context menu into compact top-level groups: Quick Capture, Work, Query & Input, Tools, Sleep/Wake and Quit.
+- Consolidated the menu-bar fallback into Work, Query and Tools submenus instead of exposing every action at the top level.
+- Calendar and Reminders authorization now use separate `EKEventStore` instances and only refresh the entity that was requested.
+- Settings serialize Apple permission requests so Calendar and Reminders authorization cannot be started concurrently.
+- The in-app updater now passes the current DeskPet PID to the updater. After the new build is ready, DeskPet terminates normally; the updater waits for that exact PID to disappear before replacing the bundle and launching one new instance.
+- Standalone updater mode also waits until all existing DeskPet processes are gone before launching the replacement.
+
+### Safety
+- Empty Trash is never automatic and always requires an explicit destructive confirmation.
+- Calendar, Reminders and GAS write operations retain their existing human-confirmation boundaries.
+- The updater preserves the existing rollback backup and code-sign verification flow.
+
 ## [1.1.1.1] - 2026-08
 
 RC1.1.1 permission-status refresh patch.
