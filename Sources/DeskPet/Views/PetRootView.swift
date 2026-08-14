@@ -55,8 +55,13 @@ struct PetRootView: View {
                 }
 
                 PetFaceView(state: effectivePetState, preferences: dailyPreferences)
+                    .background {
+                        Rectangle()
+                            .fill(Color.black.opacity(0.001))
+                    }
+                    .contentShape(Rectangle())
                     .onTapGesture { model.petTapped() }
-                    .gesture(
+                    .simultaneousGesture(
                         DragGesture(minimumDistance: 4)
                             .onChanged { value in onDragChanged(value.translation) }
                             .onEnded { _ in onDragEnded() }
