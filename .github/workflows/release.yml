@@ -14,6 +14,7 @@ on:
       - tests/rc1_1_2_contract.test.sh
       - tests/rc1_1_3_polish_contract.test.sh
       - tests/apple_permission_contract.test.sh
+      - tests/gemini_model_contract.test.sh
       - docs/RC1_1_1_DESKTOP_INTERACTION.md
       - script/build_and_run.sh
       - script/build_release.sh
@@ -47,6 +48,9 @@ jobs:
           NOTES_PATH="$RUNNER_TEMP/release-notes.md"
 
           case "$VERSION" in
+            1.1.3.3)
+              RELEASE_TITLE="DeskPet RC1.1.3.3 — Gemini 3 Model Refresh"
+              ;;
             1.1.3.2)
               RELEASE_TITLE="DeskPet RC1.1.3.2 — EventKit Permission State Fix"
               ;;
@@ -132,6 +136,10 @@ jobs:
         if: env.SHOULD_PUBLISH == 'true'
         run: bash tests/apple_permission_contract.test.sh
 
+      - name: Validate Gemini model contract
+        if: env.SHOULD_PUBLISH == 'true'
+        run: bash tests/gemini_model_contract.test.sh
+
       - name: Run tests
         if: env.SHOULD_PUBLISH == 'true'
         run: swift test
@@ -180,6 +188,7 @@ jobs:
             echo "- RC1.1.2 permission/menu contract: PASS"
             echo "- RC1.1.3 weekly-update/GAS-menu/window-level contract: PASS"
             echo "- Apple permission/TCC-signing contract: PASS"
+            echo "- Gemini model contract: PASS"
             echo "- Public repository checks: PASS"
             echo "- Release build and codesign verification: PASS"
             echo "- Asset: \`DeskPet-${VERSION}.zip\`"
