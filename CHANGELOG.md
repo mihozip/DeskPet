@@ -2,6 +2,23 @@
 
 All notable changes to DeskPet are documented here. Release Candidate interfaces and stored-data formats may still evolve before the final 1.0 release.
 
+## [1.1.3.3] - 2026-08
+
+RC1.1.3.3 refreshes DeskPet's Gemini picker to the current Gemini 3.5+ production lineup.
+
+### Changed
+- Removed all Gemini 2.x model options from Settings.
+- Changed the default model from `gemini-2.5-flash` to `gemini-3.6-flash`.
+- Added `gemini-3.5-flash` alongside the existing `gemini-3.6-flash` and `gemini-3.5-flash-lite` choices.
+- Renamed the picker labels to make the recommended, quality-oriented and lower-cost choices clearer.
+
+### Migration
+- Existing users whose saved model points to Gemini 2.x or any model no longer present in the supported picker are migrated automatically to `gemini-3.6-flash`.
+- DeskPet does not expose a speculative Gemini 3.7 model ID. It will be added only after Google publishes an official API model identifier.
+
+### Validation
+- Added a Gemini model contract to CI and Release checks so retired 2.x options or speculative model IDs are not accidentally reintroduced.
+
 ## [1.1.3.2] - 2026-08
 
 RC1.1.3.2 rebuilds the Apple permission flow around EventKit's real authorization state and makes local signing more stable for macOS TCC.
@@ -154,7 +171,7 @@ Release Candidate 1 — Daily Work Loop.
 
 ### Added
 - Added a persistent interface work-role name under General settings, with a default of `總務` and validation for custom values.
-- Workbench, task digest, reminder, task-action and related task messages now use the configured role name.
+- Workbench, work digest, reminder, task-action and related task messages now use the configured role name.
 
 ### Changed
 - Kept the interface role name separate from the GAS administrative-title override so display customization never changes task ownership or Dashboard profile keys.
