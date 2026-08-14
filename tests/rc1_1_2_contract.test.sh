@@ -31,11 +31,20 @@ grep -qF 'Button("清理垃圾桶…")' "$PET_MENU"
 grep -qF 'NSMenuItem(title: "工作"' "$STATUS_MENU"
 grep -qF 'NSMenuItem(title: "工具"' "$STATUS_MENU"
 
-# Trash cleanup is destructive and therefore must remain confirmation-gated.
+# Trash cleanup is destructive and must remain confirmation-gated, but it must
+# not depend on Finder Apple Events/TCC in an ad-hoc RC build.
 grep -qF 'alert.messageText = "清理垃圾桶？"' "$TRASH"
 grep -qF 'guard alert.runModal() == .alertFirstButtonReturn else { return }' "$TRASH"
-grep -qF 'tell application \"Finder\" to empty trash' "$TRASH"
-grep -qF 'NSAppleEventsUsageDescription' "$BUILD_DEBUG"
-grep -qF 'NSAppleEventsUsageDescription' "$BUILD_RELEASE"
+grep -qF 'homeDirectoryForCurrentUser.appendingPathComponent(".Trash"' "$TRASH"
+grep -qF '.appendingPathComponent(".Trashes"' "$TRASH"
+grep -qF 'try fileManager.removeItem(at: item)' "$TRASH"
+if grep -qF 'NSAppleScript' "$TRASH"; then
+  echo "ERROR: Trash cleanup must not depend on Finder Apple Events" >&2
+  exit 1
+fi
+if grep -qF 'NSAppleEventsUsageDescription' "$BUILD_DEBUG" || grep -qF 'NSAppleEventsUsageDescription' "$BUILD_RELEASE"; then
+  echo "ERROR: Obsolete Finder Automation usage description must be removed" >&2
+  exit 1
+fi
 
 echo "DeskPet RC1.1.2 permission, menu and trash contracts passed"
