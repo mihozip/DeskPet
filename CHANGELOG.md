@@ -2,6 +2,26 @@
 
 All notable changes to DeskPet are documented here. Release Candidate interfaces and stored-data formats may still evolve before the final 1.0 release.
 
+## [1.1.3.0] - 2026-08
+
+Release Candidate 1.1.3 — Weekly Updates, Contextual GAS Menus and Non-Blocking Desktop Presence.
+
+### Added
+- Added automatic update checking with a seven-day network-check interval. While DeskPet remains open, a lightweight local due-check keeps the schedule current without repeatedly contacting GitHub.
+- Added an update prompt that appears only when a newer version exists, with `立即更新` and `稍後` choices.
+
+### Changed
+- GAS task features now use a verified `isLinked` state: enabled integration, valid HTTPS endpoint, Keychain token, and successful Dashboard integration metadata are all required before task-related menu items appear.
+- When the school task system is not linked, DeskPet keeps the integration setup only in Settings and hides task digest, natural task action, voice task action, immediate GAS sync, and related ambient task UI from desktop menus.
+- The menu-bar fallback also hides GAS task digest entries until the integration is verified.
+- DeskPet's pet panel now uses normal window level rather than a floating always-on-top level, allowing Word, browsers, Finder and other normal application windows to cover the pet during ordinary work.
+- The global voice task shortcut is ignored while the school task system is not linked.
+
+### Safety / UX
+- Automatic update checks do not install anything without user confirmation.
+- Choosing `稍後` does not cause repeated hourly prompts; the next network check remains gated by the seven-day interval.
+- DeskPet can still bring itself forward explicitly for quick capture while no longer permanently covering normal work windows.
+
 ## [1.1.2.0] - 2026-08
 
 Release Candidate 1.1.2 — Permission Isolation, Safe Update Handoff and Compact Menu.
