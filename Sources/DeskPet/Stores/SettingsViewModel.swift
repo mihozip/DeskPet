@@ -171,7 +171,7 @@ final class SettingsViewModel: ObservableObject {
     }
 
     func requestCalendarAccess() {
-        guard !isRequestingCalendar else { return }
+        guard !isRequestingCalendar, !isRequestingReminders else { return }
         isRequestingCalendar = true
         Task {
             _ = await actionService.requestCalendarAccess()
@@ -180,7 +180,7 @@ final class SettingsViewModel: ObservableObject {
     }
 
     func requestRemindersAccess() {
-        guard !isRequestingReminders else { return }
+        guard !isRequestingCalendar, !isRequestingReminders else { return }
         isRequestingReminders = true
         Task {
             _ = await actionService.requestRemindersAccess()
