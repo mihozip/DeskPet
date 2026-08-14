@@ -46,6 +46,7 @@ jobs:
           bash -n tests/rc1_1_2_contract.test.sh
           bash -n tests/rc1_1_3_polish_contract.test.sh
           bash -n tests/apple_permission_contract.test.sh
+          bash -n tests/gemini_model_contract.test.sh
 
       - name: Validate updater entrypoint
         run: ./tests/updater_cli.test.sh
@@ -61,6 +62,9 @@ jobs:
 
       - name: Validate Apple permission and signing contract
         run: bash tests/apple_permission_contract.test.sh
+
+      - name: Validate Gemini model contract
+        run: bash tests/gemini_model_contract.test.sh
 
       - name: Validate administrative-title UI
         run: ./tests/administrative_title_ui.test.sh
