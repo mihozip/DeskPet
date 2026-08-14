@@ -86,7 +86,6 @@ cat > "$CONTENTS/Info.plist" <<PLIST
     <key>NSCalendarsFullAccessUsageDescription</key><string>DeskPet 只會在你開啟行事曆智慧查詢時讀取行程，用於本機篩選日期、地點與主題。</string>
     <key>NSRemindersUsageDescription</key><string>DeskPet 需要在你確認後建立提醒事項。</string>
     <key>NSRemindersFullAccessUsageDescription</key><string>DeskPet 只會在你按下建立按鈕後新增提醒事項。</string>
-    <key>NSAppleEventsUsageDescription</key><string>DeskPet 只會在你確認「清理垃圾桶」後控制 Finder 執行清空垃圾桶。</string>
     <key>NSMicrophoneUsageDescription</key><string>DeskPet 需要使用麥克風，將你說的任務操作轉成文字。</string>
     <key>NSSpeechRecognitionUsageDescription</key><string>DeskPet 需要使用 macOS 語音辨識，將語音命令轉成文字後交給任務理解流程。</string>
     <key>NSPrincipalClass</key><string>NSApplication</string>
