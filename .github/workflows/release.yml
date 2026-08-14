@@ -7,10 +7,15 @@ on:
       - main
     paths:
       - VERSION
+      - CHANGELOG.md
       - Sources/DeskPet/**
       - tests/desktop_interaction_contract.test.sh
+      - tests/update_progress_contract.test.sh
+      - tests/rc1_1_2_contract.test.sh
       - docs/RC1_1_1_DESKTOP_INTERACTION.md
+      - script/build_and_run.sh
       - script/build_release.sh
+      - script/install_or_update.sh
       - .github/workflows/release.yml
 
 permissions:
@@ -35,6 +40,9 @@ jobs:
           NOTES_PATH="$RUNNER_TEMP/release-notes.md"
 
           case "$VERSION" in
+            1.1.2.0)
+              RELEASE_TITLE="DeskPet RC1.1.2 — Safer Handoff & Compact Menu"
+              ;;
             1.1.1.1)
               RELEASE_TITLE="DeskPet RC1.1.1.1 — Permission Status Refresh"
               ;;
@@ -79,6 +87,14 @@ jobs:
         if: env.RELEASE_EXISTS != 'true'
         run: bash tests/desktop_interaction_contract.test.sh
 
+      - name: Validate updater hand-off
+        if: env.RELEASE_EXISTS != 'true'
+        run: bash tests/update_progress_contract.test.sh
+
+      - name: Validate RC1.1.2 integration contract
+        if: env.RELEASE_EXISTS != 'true'
+        run: bash tests/rc1_1_2_contract.test.sh
+
       - name: Run tests
         if: env.RELEASE_EXISTS != 'true'
         run: swift test
@@ -117,6 +133,8 @@ jobs:
             echo "- GitHub Actions release workflow: PASS"
             echo "- Swift tests: PASS"
             echo "- Desktop interaction contract: PASS"
+            echo "- Updater hand-off contract: PASS"
+            echo "- RC1.1.2 permission/menu/trash contract: PASS"
             echo "- Public repository checks: PASS"
             echo "- Release build and codesign verification: PASS"
             echo "- Asset: \`DeskPet-${VERSION}.zip\`"
