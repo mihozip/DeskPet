@@ -34,7 +34,7 @@ final class PetPanelController: NSWindowController {
 
         let panel = PetPanel(
             contentRect: NSRect(x: 0, y: 0, width: 400, height: 220),
-            styleMask: [.borderless, .nonactivatingPanel],
+            styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
@@ -47,6 +47,10 @@ final class PetPanelController: NSWindowController {
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
         panel.animationBehavior = .none
+        panel.isFloatingPanel = true
+        panel.ignoresMouseEvents = false
+        panel.acceptsMouseMovedEvents = true
+        panel.becomesKeyOnlyIfNeeded = false
 
         super.init(window: panel)
 
@@ -82,7 +86,7 @@ final class PetPanelController: NSWindowController {
             }
         )
 
-        panel.contentView = NSHostingView(rootView: rootView)
+        panel.contentView = PetHostingView(rootView: rootView)
         restorePosition()
     }
 
@@ -96,6 +100,7 @@ final class PetPanelController: NSWindowController {
 
     func showCapture() {
         show()
+        activateForInput()
         model.beginCapture()
     }
 
