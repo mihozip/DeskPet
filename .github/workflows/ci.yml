@@ -33,12 +33,16 @@ jobs:
           bash -n script/install_or_update.sh
           bash -n script/check_public_repo.sh
           bash -n tests/desktop_interaction_contract.test.sh
+          bash -n tests/rc1_1_2_contract.test.sh
 
       - name: Validate updater entrypoint
         run: ./tests/updater_cli.test.sh
 
-      - name: Validate visible update progress
+      - name: Validate updater hand-off
         run: ./tests/update_progress_contract.test.sh
+
+      - name: Validate RC1.1.2 integration contract
+        run: bash tests/rc1_1_2_contract.test.sh
 
       - name: Validate administrative-title UI
         run: ./tests/administrative_title_ui.test.sh
@@ -64,3 +68,4 @@ jobs:
           test -s dist/DeskPet.app/Contents/Resources/pet_sleep.png
           test -s dist/DeskPet.app/Contents/Resources/AppIcon.icns
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' dist/DeskPet.app/Contents/Info.plist)" = "AppIcon.icns"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :NSAppleEventsUsageDescription' dist/DeskPet.app/Contents/Info.plist)" != ""
