@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import Foundation
 
@@ -175,6 +176,7 @@ final class SettingsViewModel: ObservableObject {
         isRequestingCalendar = true
         Task {
             _ = await actionService.requestCalendarAccess()
+            actionService.refreshCalendarAuthorizationStatus()
             isRequestingCalendar = false
         }
     }
@@ -184,7 +186,19 @@ final class SettingsViewModel: ObservableObject {
         isRequestingReminders = true
         Task {
             _ = await actionService.requestRemindersAccess()
+            actionService.refreshRemindersAuthorizationStatus()
             isRequestingReminders = false
+        }
+    }
+
+    func refreshApplePermissions() {
+        actionService.refreshAuthorizationStatus()
+    }
+
+    func openSystemPrivacySettings() {
+        let settingsURL = URL(fileURLWithPath: "/System/Applications/System Settings.app", isDirectory: true)
+        if !NSWorkspace.shared.open(settingsURL) {
+            NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Preferences.app", isDirectory: true))
         }
     }
 
