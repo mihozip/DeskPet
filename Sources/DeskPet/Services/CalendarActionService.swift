@@ -49,7 +49,13 @@ final class CalendarActionService: ObservableObject {
             } else {
                 granted = try await requestLegacyAccess(to: .event)
             }
-            refreshAuthorizationStatus()
+
+            if granted {
+                markGrantedImmediately(for: .event)
+                reconcileAuthorizationStatus(for: .event)
+            } else {
+                refreshAuthorizationStatus()
+            }
             return granted
         } catch {
             calendarStatusText = "授權失敗：\(error.localizedDescription)"
@@ -65,7 +71,13 @@ final class CalendarActionService: ObservableObject {
             } else {
                 granted = try await requestLegacyAccess(to: .reminder)
             }
-            refreshAuthorizationStatus()
+
+            if granted {
+                markGrantedImmediately(for: .reminder)
+                reconcileAuthorizationStatus(for: .reminder)
+            } else {
+                refreshAuthorizationStatus()
+            }
             return granted
         } catch {
             remindersStatusText = "授權失敗：\(error.localizedDescription)"
@@ -148,6 +160,40 @@ final class CalendarActionService: ObservableObject {
             return await requestRemindersAccess()
         }
         return false
+    }
+
+    private func markGrantedImmediately(for entityType: EKEntityType) {
+        if #available(macOS 14.0, *) {
+            if entityType == .event {
+                calendarStatusText = "僅寫入已授權"
+            } else {
+                remindersStatusText = "完整存取已授權"
+            }
+        } else if entityType == .event {
+            calendarStatusText = "已授權"
+        } else {
+            remindersStatusText = "已授權"
+        }
+    }
+
+    /// EventKit 的 request API 可能已回傳 granted，但 TCC 的 authorizationStatus
+    /// 在同一個 run-loop 仍暫時回傳舊值。先以 request 結果更新 UI，稍後再用
+    /// 系統狀態校正；若系統仍回傳 notDetermined，保留已確認的 granted 顯示。
+    private func reconcileAuthorizationStatus(for entityType: EKEntityType) {
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard let self else { return }
+
+            let status = EKEventStore.authorizationStatus(for: entityType)
+            guard status != .notDetermined else { return }
+
+            let text = self.statusText(for: status, entityType: entityType)
+            if entityType == .event {
+                self.calendarStatusText = text
+            } else {
+                self.remindersStatusText = text
+            }
+        }
     }
 
     private func hasUsableAccess(_ status: EKAuthorizationStatus, entityType: EKEntityType) -> Bool {
