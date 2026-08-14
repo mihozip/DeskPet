@@ -35,6 +35,9 @@ jobs:
           NOTES_PATH="$RUNNER_TEMP/release-notes.md"
 
           case "$VERSION" in
+            1.1.1.1)
+              RELEASE_TITLE="DeskPet RC1.1.1.1 — Permission Status Refresh"
+              ;;
             1.1.1.0)
               RELEASE_TITLE="DeskPet RC1.1.1 — Desktop Interaction Fix"
               ;;
