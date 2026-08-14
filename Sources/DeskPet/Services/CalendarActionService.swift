@@ -4,6 +4,28 @@ import Foundation
 
 @MainActor
 final class CalendarActionService: ObservableObject {
+    enum PermissionState: Equatable {
+        case notDetermined
+        case restricted
+        case denied
+        case writeOnly
+        case fullAccess
+        case legacyAuthorized
+        case unknown
+
+        var hasFullAccess: Bool {
+            self == .fullAccess || self == .legacyAuthorized
+        }
+
+        var hasCalendarWriteAccess: Bool {
+            hasFullAccess || self == .writeOnly
+        }
+
+        var needsSystemSettings: Bool {
+            self == .denied
+        }
+    }
+
     enum ActionError: LocalizedError {
         case calendarPermissionDenied
         case remindersPermissionDenied
@@ -27,12 +49,21 @@ final class CalendarActionService: ObservableObject {
         }
     }
 
-    @Published private(set) var calendarStatusText = "尚未檢查"
-    @Published private(set) var remindersStatusText = "尚未檢查"
+    @Published private(set) var calendarPermissionState: PermissionState = .unknown
+    @Published private(set) var remindersPermissionState: PermissionState = .unknown
+    @Published private(set) var calendarErrorText: String?
+    @Published private(set) var remindersErrorText: String?
 
-    // Calendar and Reminders are different EventKit entity types. Keep their
-    // request paths physically separate so pressing one permission button can
-    // never invoke the other entity's authorization API.
+    var calendarStatusText: String {
+        statusText(for: calendarPermissionState, entityType: .event)
+    }
+
+    var remindersStatusText: String {
+        statusText(for: remindersPermissionState, entityType: .reminder)
+    }
+
+    // Keep Calendar and Reminders on physically separate stores. Authorization
+    // state itself always comes from EKEventStore.authorizationStatus(for:).
     private let calendarStore = EKEventStore()
     private let remindersStore = EKEventStore()
 
@@ -46,23 +77,39 @@ final class CalendarActionService: ObservableObject {
     }
 
     func refreshCalendarAuthorizationStatus() {
-        calendarStatusText = statusText(
-            for: EKEventStore.authorizationStatus(for: .event),
+        calendarPermissionState = permissionState(
+            from: EKEventStore.authorizationStatus(for: .event),
             entityType: .event
         )
     }
 
     func refreshRemindersAuthorizationStatus() {
-        remindersStatusText = statusText(
-            for: EKEventStore.authorizationStatus(for: .reminder),
+        remindersPermissionState = permissionState(
+            from: EKEventStore.authorizationStatus(for: .reminder),
             entityType: .reminder
         )
     }
 
-    /// DeskPet includes Calendar Intelligence, so the Calendar integration needs
-    /// full event access rather than write-only access. This request is Calendar
-    /// only; it does not request or modify Reminders authorization.
+    /// Calendar Intelligence reads existing events, so the Settings permission
+    /// request always asks for full event access. A previously granted write-only
+    /// permission may still create events, but it is not enough for queries.
     func requestCalendarAccess() async -> Bool {
+        calendarErrorText = nil
+        refreshCalendarAuthorizationStatus()
+
+        switch calendarPermissionState {
+        case .fullAccess, .legacyAuthorized:
+            return true
+        case .denied:
+            calendarErrorText = "行事曆權限已被拒絕。macOS 不會再次顯示授權視窗，請到「系統設定 → 隱私權與安全性 → 行事曆」開啟 DeskPet。"
+            return false
+        case .restricted:
+            calendarErrorText = "此 Mac 目前限制行事曆存取，DeskPet 無法自行解除。"
+            return false
+        case .notDetermined, .writeOnly, .unknown:
+            break
+        }
+
         do {
             let granted: Bool
             if #available(macOS 14.0, *) {
@@ -72,22 +119,44 @@ final class CalendarActionService: ObservableObject {
             }
 
             if granted {
-                // Refresh the store after TCC changes so a store created before
-                // authorization doesn't keep stale Calendar source state.
                 calendarStore.reset()
-                markGrantedImmediately(for: .event)
-                reconcileAuthorizationStatus(for: .event)
+                await waitForSystemAuthorizationState(for: .event)
             } else {
                 refreshCalendarAuthorizationStatus()
             }
-            return granted
+
+            if calendarPermissionState.hasFullAccess {
+                return true
+            }
+
+            if granted {
+                calendarErrorText = "macOS 已完成授權流程，但目前尚未回報完整存取。請按「重新檢查」；若仍未更新，請到系統設定確認行事曆權限。"
+            }
+            return false
         } catch {
-            calendarStatusText = "授權失敗：\(error.localizedDescription)"
+            refreshCalendarAuthorizationStatus()
+            calendarErrorText = "行事曆授權失敗：\(error.localizedDescription)"
             return false
         }
     }
 
     func requestRemindersAccess() async -> Bool {
+        remindersErrorText = nil
+        refreshRemindersAuthorizationStatus()
+
+        switch remindersPermissionState {
+        case .fullAccess, .legacyAuthorized:
+            return true
+        case .denied:
+            remindersErrorText = "提醒事項權限已被拒絕。macOS 不會再次顯示授權視窗，請到「系統設定 → 隱私權與安全性 → 提醒事項」開啟 DeskPet。"
+            return false
+        case .restricted:
+            remindersErrorText = "此 Mac 目前限制提醒事項存取，DeskPet 無法自行解除。"
+            return false
+        case .notDetermined, .writeOnly, .unknown:
+            break
+        }
+
         do {
             let granted: Bool
             if #available(macOS 14.0, *) {
@@ -98,20 +167,28 @@ final class CalendarActionService: ObservableObject {
 
             if granted {
                 remindersStore.reset()
-                markGrantedImmediately(for: .reminder)
-                reconcileAuthorizationStatus(for: .reminder)
+                await waitForSystemAuthorizationState(for: .reminder)
             } else {
                 refreshRemindersAuthorizationStatus()
             }
-            return granted
+
+            if remindersPermissionState.hasFullAccess {
+                return true
+            }
+
+            if granted {
+                remindersErrorText = "macOS 已完成授權流程，但目前尚未回報提醒事項完整存取。請按「重新檢查」；若仍未更新，請到系統設定確認權限。"
+            }
+            return false
         } catch {
-            remindersStatusText = "授權失敗：\(error.localizedDescription)"
+            refreshRemindersAuthorizationStatus()
+            remindersErrorText = "提醒事項授權失敗：\(error.localizedDescription)"
             return false
         }
     }
 
     func createCalendarEvent(title: String, startDate: Date, duration: TimeInterval = 3600) async throws -> ActionReceipt {
-        guard await ensureCalendarAccess() else {
+        guard await ensureCalendarWriteAccess() else {
             throw ActionError.calendarPermissionDenied
         }
         guard let calendar = calendarStore.defaultCalendarForNewEvents else {
@@ -165,110 +242,105 @@ final class CalendarActionService: ObservableObject {
         )
     }
 
-    private func ensureCalendarAccess() async -> Bool {
-        let status = EKEventStore.authorizationStatus(for: .event)
-        if hasUsableAccess(status, entityType: .event) {
-            return true
-        }
-        if status == .notDetermined {
+    private func ensureCalendarWriteAccess() async -> Bool {
+        refreshCalendarAuthorizationStatus()
+        if calendarPermissionState.hasCalendarWriteAccess { return true }
+        if calendarPermissionState == .notDetermined {
             return await requestCalendarAccess()
         }
         return false
     }
 
     private func ensureRemindersAccess() async -> Bool {
-        let status = EKEventStore.authorizationStatus(for: .reminder)
-        if hasUsableAccess(status, entityType: .reminder) {
-            return true
-        }
-        if status == .notDetermined {
+        refreshRemindersAuthorizationStatus()
+        if remindersPermissionState.hasFullAccess { return true }
+        if remindersPermissionState == .notDetermined {
             return await requestRemindersAccess()
         }
         return false
     }
 
-    private func markGrantedImmediately(for entityType: EKEntityType) {
-        if #available(macOS 14.0, *) {
+    /// The authorization completion and TCC's visible status can settle on
+    /// slightly different turns of the run loop. Never invent an "authorized"
+    /// UI state from the completion Boolean; poll the real EventKit status for a
+    /// short bounded period and publish only what macOS actually reports.
+    private func waitForSystemAuthorizationState(for entityType: EKEntityType) async {
+        for _ in 0..<20 {
+            let state = permissionState(
+                from: EKEventStore.authorizationStatus(for: entityType),
+                entityType: entityType
+            )
+
             if entityType == .event {
-                calendarStatusText = "完整存取已授權"
+                calendarPermissionState = state
+                if state.hasFullAccess || state == .denied || state == .restricted { return }
             } else {
-                remindersStatusText = "完整存取已授權"
+                remindersPermissionState = state
+                if state.hasFullAccess || state == .denied || state == .restricted { return }
             }
-        } else if entityType == .event {
-            calendarStatusText = "已授權"
+
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+
+        if entityType == .event {
+            refreshCalendarAuthorizationStatus()
         } else {
-            remindersStatusText = "已授權"
+            refreshRemindersAuthorizationStatus()
         }
     }
 
-    /// EventKit can complete an authorization request before
-    /// `authorizationStatus(for:)` visibly catches up. Preserve the confirmed
-    /// result, then reconcile only the entity the user actually requested.
-    private func reconcileAuthorizationStatus(for entityType: EKEntityType) {
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            guard let self else { return }
-
-            let status = EKEventStore.authorizationStatus(for: entityType)
-            guard status != .notDetermined else { return }
-
-            let text = self.statusText(for: status, entityType: entityType)
-            if entityType == .event {
-                self.calendarStatusText = text
-            } else {
-                self.remindersStatusText = text
-            }
-        }
-    }
-
-    private func hasUsableAccess(_ status: EKAuthorizationStatus, entityType: EKEntityType) -> Bool {
-        if #available(macOS 14.0, *) {
-            switch status {
-            case .fullAccess:
-                return true
-            case .writeOnly:
-                return entityType == .event
-            case .authorized:
-                return true
-            default:
-                return false
-            }
-        } else {
-            return status == .authorized
-        }
-    }
-
-    private func statusText(for status: EKAuthorizationStatus, entityType: EKEntityType) -> String {
+    private func permissionState(from status: EKAuthorizationStatus, entityType: EKEntityType) -> PermissionState {
         if #available(macOS 14.0, *) {
             switch status {
             case .notDetermined:
-                return "尚未要求權限"
+                return .notDetermined
             case .restricted:
-                return "系統限制存取"
+                return .restricted
             case .denied:
-                return "已拒絕"
-            case .authorized:
-                return "已授權"
+                return .denied
             case .fullAccess:
-                return "完整存取已授權"
+                return .fullAccess
             case .writeOnly:
-                return entityType == .event ? "僅寫入已授權（建議升級完整存取）" : "僅寫入"
+                return entityType == .event ? .writeOnly : .unknown
+            case .authorized:
+                // Kept only as a defensive compatibility mapping. New SDKs use
+                // fullAccess/writeOnly on macOS 14+.
+                return .legacyAuthorized
             @unknown default:
-                return "未知狀態"
+                return .unknown
             }
-        } else {
-            switch status {
-            case .notDetermined:
-                return "尚未要求權限"
-            case .restricted:
-                return "系統限制存取"
-            case .denied:
-                return "已拒絕"
-            case .authorized:
-                return "已授權"
-            default:
-                return "未知狀態"
-            }
+        }
+
+        switch status {
+        case .notDetermined:
+            return .notDetermined
+        case .restricted:
+            return .restricted
+        case .denied:
+            return .denied
+        case .authorized:
+            return .legacyAuthorized
+        default:
+            return .unknown
+        }
+    }
+
+    private func statusText(for state: PermissionState, entityType: EKEntityType) -> String {
+        switch state {
+        case .notDetermined:
+            return "尚未授權"
+        case .restricted:
+            return "受系統限制"
+        case .denied:
+            return "已拒絕（需至系統設定開啟）"
+        case .writeOnly:
+            return entityType == .event ? "僅可新增行程，無法查詢既有行程" : "權限狀態異常"
+        case .fullAccess:
+            return "完整存取已授權"
+        case .legacyAuthorized:
+            return "已授權"
+        case .unknown:
+            return "權限狀態未知，請重新檢查"
         }
     }
 
