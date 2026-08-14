@@ -47,8 +47,10 @@ struct PetRootView: View {
                     .padding(.trailing, 30)
 
                 if model.state == .idle {
-                    AmbientBriefingBubbleView(monitor: ambientMonitor, gasConfiguration: gasConfiguration)
-                        .padding(.trailing, 30)
+                    if gasConfiguration.isLinked {
+                        AmbientBriefingBubbleView(monitor: ambientMonitor, gasConfiguration: gasConfiguration)
+                            .padding(.trailing, 30)
+                    }
 
                     PetWorkStateBadge(state: workSnapshot.petWorkState)
                         .padding(.trailing, 30)
@@ -71,20 +73,27 @@ struct PetRootView: View {
 
                         Menu("工作") {
                             Button("開啟 Inbox") { onOpenInbox() }
-                            Button("今日工作") { onOpenTaskDigest() }
+                            if gasConfiguration.isLinked {
+                                Button("今日工作") { onOpenTaskDigest() }
+                            }
                             Button("每日工作日誌…") { onOpenDiary() }
                         }
 
                         Menu("查詢與輸入") {
                             Button("查詢行事曆…") { onOpenCalendarQuery() }
-                            Button("自然語句操作…") { onOpenNaturalAction() }
-                            Button("語音操作（⌃⌥V）") { onOpenVoiceAction() }
+                            if gasConfiguration.isLinked {
+                                Button("自然語句操作…") { onOpenNaturalAction() }
+                                Button("語音操作（⌃⌥V）") { onOpenVoiceAction() }
+                            }
                         }
 
                         Menu("工具") {
-                            Button("立即同步校務任務系統") {
-                                Task { await ambientMonitor.refresh(manual: true) }
+                            if gasConfiguration.isLinked {
+                                Button("立即同步校務任務系統") {
+                                    Task { await ambientMonitor.refresh(manual: true) }
+                                }
                             }
+
                             Button("清理垃圾桶…") {
                                 TrashService.confirmAndEmptyTrash()
                             }
