@@ -30,31 +30,49 @@ final class CalendarActionService: ObservableObject {
     @Published private(set) var calendarStatusText = "尚未檢查"
     @Published private(set) var remindersStatusText = "尚未檢查"
 
-    private let eventStore = EKEventStore()
+    // Keep EventKit entry points physically separate. Authorization is system-wide
+    // per entity type, but separate stores make it impossible for a Calendar button
+    // path to accidentally reuse the Reminders request path (and vice versa).
+    private let calendarStore = EKEventStore()
+    private let remindersStore = EKEventStore()
 
     init() {
         refreshAuthorizationStatus()
     }
 
     func refreshAuthorizationStatus() {
-        calendarStatusText = statusText(for: EKEventStore.authorizationStatus(for: .event), entityType: .event)
-        remindersStatusText = statusText(for: EKEventStore.authorizationStatus(for: .reminder), entityType: .reminder)
+        refreshCalendarAuthorizationStatus()
+        refreshRemindersAuthorizationStatus()
+    }
+
+    func refreshCalendarAuthorizationStatus() {
+        calendarStatusText = statusText(
+            for: EKEventStore.authorizationStatus(for: .event),
+            entityType: .event
+        )
+    }
+
+    func refreshRemindersAuthorizationStatus() {
+        remindersStatusText = statusText(
+            for: EKEventStore.authorizationStatus(for: .reminder),
+            entityType: .reminder
+        )
     }
 
     func requestCalendarAccess() async -> Bool {
         do {
             let granted: Bool
             if #available(macOS 14.0, *) {
-                granted = try await eventStore.requestWriteOnlyAccessToEvents()
+                granted = try await calendarStore.requestWriteOnlyAccessToEvents()
             } else {
-                granted = try await requestLegacyAccess(to: .event)
+                granted = try await requestLegacyAccess(to: .event, store: calendarStore)
             }
 
             if granted {
                 markGrantedImmediately(for: .event)
                 reconcileAuthorizationStatus(for: .event)
             } else {
-                refreshAuthorizationStatus()
+                refreshCalendarAuthorizationStatus()
             }
             return granted
         } catch {
@@ -67,16 +85,16 @@ final class CalendarActionService: ObservableObject {
         do {
             let granted: Bool
             if #available(macOS 14.0, *) {
-                granted = try await eventStore.requestFullAccessToReminders()
+                granted = try await remindersStore.requestFullAccessToReminders()
             } else {
-                granted = try await requestLegacyAccess(to: .reminder)
+                granted = try await requestLegacyAccess(to: .reminder, store: remindersStore)
             }
 
             if granted {
                 markGrantedImmediately(for: .reminder)
                 reconcileAuthorizationStatus(for: .reminder)
             } else {
-                refreshAuthorizationStatus()
+                refreshRemindersAuthorizationStatus()
             }
             return granted
         } catch {
@@ -89,16 +107,16 @@ final class CalendarActionService: ObservableObject {
         guard await ensureCalendarAccess() else {
             throw ActionError.calendarPermissionDenied
         }
-        guard let calendar = eventStore.defaultCalendarForNewEvents else {
+        guard let calendar = calendarStore.defaultCalendarForNewEvents else {
             throw ActionError.noDefaultCalendar
         }
 
-        let event = EKEvent(eventStore: eventStore)
+        let event = EKEvent(eventStore: calendarStore)
         event.title = title
         event.startDate = startDate
         event.endDate = startDate.addingTimeInterval(duration)
         event.calendar = calendar
-        try eventStore.save(event, span: .thisEvent, commit: true)
+        try calendarStore.save(event, span: .thisEvent, commit: true)
 
         return ActionReceipt(
             kind: .calendarEvent,
@@ -112,11 +130,11 @@ final class CalendarActionService: ObservableObject {
         guard await ensureRemindersAccess() else {
             throw ActionError.remindersPermissionDenied
         }
-        guard let calendar = eventStore.defaultCalendarForNewReminders() else {
+        guard let calendar = remindersStore.defaultCalendarForNewReminders() else {
             throw ActionError.noDefaultReminderList
         }
 
-        let reminder = EKReminder(eventStore: eventStore)
+        let reminder = EKReminder(eventStore: remindersStore)
         reminder.title = title
         reminder.calendar = calendar
 
@@ -130,7 +148,7 @@ final class CalendarActionService: ObservableObject {
             reminder.dueDateComponents = components
         }
 
-        try eventStore.save(reminder, commit: true)
+        try remindersStore.save(reminder, commit: true)
 
         return ActionReceipt(
             kind: .reminder,
@@ -176,9 +194,8 @@ final class CalendarActionService: ObservableObject {
         }
     }
 
-    /// EventKit 的 request API 可能已回傳 granted，但 TCC 的 authorizationStatus
-    /// 在同一個 run-loop 仍暫時回傳舊值。先以 request 結果更新 UI，稍後再用
-    /// 系統狀態校正；若系統仍回傳 notDetermined，保留已確認的 granted 顯示。
+    /// EventKit may return `granted` before TCC's authorizationStatus catches up.
+    /// Preserve the confirmed result, then reconcile only the requested entity.
     private func reconcileAuthorizationStatus(for entityType: EKEntityType) {
         Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 500_000_000)
@@ -242,16 +259,14 @@ final class CalendarActionService: ObservableObject {
             case .authorized:
                 return "已授權"
             default:
-                // macOS 13 不會產生 macOS 14 新增的 fullAccess / writeOnly，
-                // 但使用新 SDK 編譯時，Swift 仍要求 switch 對已知 enum case 完整覆蓋。
                 return "未知狀態"
             }
         }
     }
 
-    private func requestLegacyAccess(to entityType: EKEntityType) async throws -> Bool {
+    private func requestLegacyAccess(to entityType: EKEntityType, store: EKEventStore) async throws -> Bool {
         try await withCheckedThrowingContinuation { continuation in
-            eventStore.requestAccess(to: entityType) { granted, error in
+            store.requestAccess(to: entityType) { granted, error in
                 if let error {
                     continuation.resume(throwing: error)
                 } else {
