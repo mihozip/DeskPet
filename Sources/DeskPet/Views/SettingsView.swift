@@ -49,10 +49,10 @@ struct SettingsView: View {
         }
         .frame(minWidth: 700, minHeight: 650)
         .onAppear {
-            actionService.refreshAuthorizationStatus()
+            model.refreshApplePermissions()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            actionService.refreshAuthorizationStatus()
+            model.refreshApplePermissions()
         }
     }
 
@@ -274,23 +274,30 @@ struct SettingsView: View {
     private var integrationsSection: some View {
         VStack(alignment: .leading, spacing: 18) {
             settingsCard("Apple Action Layer", systemImage: "calendar.badge.plus") {
-                HStack {
-                    Label("行事曆", systemImage: "calendar").frame(width: 100, alignment: .leading)
-                    Text(actionService.calendarStatusText).foregroundStyle(.secondary)
-                    Spacer()
-                    Button(model.isRequestingCalendar ? "要求中…" : "要求權限") { model.requestCalendarAccess() }
-                        .disabled(model.isRequestingCalendar || model.isRequestingReminders)
+                calendarPermissionRow
+
+                if let error = actionService.calendarErrorText {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                remindersPermissionRow
+
+                if let error = actionService.remindersErrorText {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 HStack {
-                    Label("提醒事項", systemImage: "checklist").frame(width: 100, alignment: .leading)
-                    Text(actionService.remindersStatusText).foregroundStyle(.secondary)
+                    Button("重新檢查權限") { model.refreshApplePermissions() }
                     Spacer()
-                    Button(model.isRequestingReminders ? "要求中…" : "要求權限") { model.requestRemindersAccess() }
-                        .disabled(model.isRequestingCalendar || model.isRequestingReminders)
                 }
 
-                Text("行事曆與提醒事項分開授權。行事曆因支援既有行程查詢會要求完整存取；提醒事項只在你單獨按下其權限按鈕時要求。Calendar / Reminders 的新增仍只會在你確認建立後執行。")
+                Text("權限顯示只採用 macOS EventKit 回報的真實狀態。行事曆與提醒事項分開授權；行事曆因支援既有行程查詢需要完整存取。若曾按過「不允許」，macOS 不會再次跳出同一授權視窗，請從系統設定重新開啟。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -361,6 +368,51 @@ struct SettingsView: View {
                 Text("主動讀取可以自動；修改、完成、延期仍需人工確認。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var calendarPermissionRow: some View {
+        HStack {
+            Label("行事曆", systemImage: "calendar").frame(width: 100, alignment: .leading)
+            Text(actionService.calendarStatusText).foregroundStyle(.secondary)
+            Spacer()
+
+            switch actionService.calendarPermissionState {
+            case .fullAccess, .legacyAuthorized:
+                Label("可使用", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            case .denied:
+                Button("開啟系統設定") { model.openSystemPrivacySettings() }
+            case .restricted:
+                Text("無法變更").foregroundStyle(.secondary)
+            case .writeOnly:
+                Button(model.isRequestingCalendar ? "要求中…" : "升級完整存取") { model.requestCalendarAccess() }
+                    .disabled(model.isRequestingCalendar || model.isRequestingReminders)
+            case .notDetermined, .unknown:
+                Button(model.isRequestingCalendar ? "要求中…" : "要求權限") { model.requestCalendarAccess() }
+                    .disabled(model.isRequestingCalendar || model.isRequestingReminders)
+            }
+        }
+    }
+
+    private var remindersPermissionRow: some View {
+        HStack {
+            Label("提醒事項", systemImage: "checklist").frame(width: 100, alignment: .leading)
+            Text(actionService.remindersStatusText).foregroundStyle(.secondary)
+            Spacer()
+
+            switch actionService.remindersPermissionState {
+            case .fullAccess, .legacyAuthorized:
+                Label("可使用", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            case .denied:
+                Button("開啟系統設定") { model.openSystemPrivacySettings() }
+            case .restricted:
+                Text("無法變更").foregroundStyle(.secondary)
+            case .notDetermined, .writeOnly, .unknown:
+                Button(model.isRequestingReminders ? "要求中…" : "要求權限") { model.requestRemindersAccess() }
+                    .disabled(model.isRequestingCalendar || model.isRequestingReminders)
             }
         }
     }
