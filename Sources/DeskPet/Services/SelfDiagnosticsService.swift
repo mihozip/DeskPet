@@ -42,6 +42,7 @@ final class SelfDiagnosticsService: ObservableObject {
 
         var result: [DiagnosticItem] = []
         result.append(appItem())
+        result.append(codeSigningItem())
         result.append(assetItem())
         result.append(updaterItem())
         result.append(inboxItem())
@@ -91,6 +92,49 @@ final class SelfDiagnosticsService: ObservableObject {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "未知"
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "未知"
         return DiagnosticItem(id: "app", title: "App 版本", detail: "\(version) (\(build))", level: .ok)
+    }
+
+    private func codeSigningItem() -> DiagnosticItem {
+        let process = Process()
+        let pipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
+        process.arguments = ["-dv", "--verbose=4", Bundle.main.bundlePath]
+        process.standardError = pipe
+        process.standardOutput = pipe
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+
+            if output.localizedCaseInsensitiveContains("Signature=adhoc") || !output.contains("Authority=") {
+                return DiagnosticItem(
+                    id: "codesign",
+                    title: "程式簽章",
+                    detail: "目前為 ad-hoc／本機測試簽章。macOS TCC 可能在重新 build 或更新後把 DeskPet 視為不同程式，Calendar、Reminders、麥克風等權限可能需要重新確認。",
+                    level: .warning
+                )
+            }
+
+            let authority = output
+                .split(separator: "\n")
+                .first { $0.hasPrefix("Authority=") }
+                .map { String($0.dropFirst("Authority=".count)) } ?? "穩定簽章"
+            return DiagnosticItem(
+                id: "codesign",
+                title: "程式簽章",
+                detail: "使用穩定簽章：\(authority)",
+                level: .ok
+            )
+        } catch {
+            return DiagnosticItem(
+                id: "codesign",
+                title: "程式簽章",
+                detail: "無法讀取簽章資訊：\(error.localizedDescription)",
+                level: .warning
+            )
+        }
     }
 
     private func assetItem() -> DiagnosticItem {
@@ -176,15 +220,23 @@ final class SelfDiagnosticsService: ObservableObject {
     }
 
     private func calendarItem() -> DiagnosticItem {
-        let text = actionService.calendarStatusText
-        let ok = text.contains("已") && !text.contains("拒絕") && !text.contains("尚未")
-        return DiagnosticItem(id: "calendar", title: "Calendar", detail: text, level: ok ? .ok : .warning)
+        let state = actionService.calendarPermissionState
+        return DiagnosticItem(
+            id: "calendar",
+            title: "Calendar",
+            detail: actionService.calendarStatusText,
+            level: state.hasFullAccess ? .ok : .warning
+        )
     }
 
     private func remindersItem() -> DiagnosticItem {
-        let text = actionService.remindersStatusText
-        let ok = text.contains("已") && !text.contains("拒絕") && !text.contains("尚未")
-        return DiagnosticItem(id: "reminders", title: "Reminders", detail: text, level: ok ? .ok : .warning)
+        let state = actionService.remindersPermissionState
+        return DiagnosticItem(
+            id: "reminders",
+            title: "Reminders",
+            detail: actionService.remindersStatusText,
+            level: state.hasFullAccess ? .ok : .warning
+        )
     }
 
     private func microphoneItem() -> DiagnosticItem {
