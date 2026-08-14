@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import Foundation
 
@@ -35,6 +36,7 @@ final class SoftwareUpdateService: ObservableObject {
     private var updateLogHandle: FileHandle?
     private var updateOutputPipe: Pipe?
     private var updateOutputBuffer = Data()
+    private var hasRequestedTerminationForUpdate = false
 
     init(session: URLSession = .shared) {
         self.session = session
@@ -124,6 +126,7 @@ final class SoftwareUpdateService: ObservableObject {
             process.arguments = [
                 updaterURL.path,
                 "--destination", Bundle.main.bundlePath,
+                "--wait-pid", String(ProcessInfo.processInfo.processIdentifier),
             ]
             var environment = ProcessInfo.processInfo.environment
             environment["DESKPET_PROGRESS_PROTOCOL"] = "1"
@@ -149,6 +152,7 @@ final class SoftwareUpdateService: ObservableObject {
             installProgress = 0.02
             installStage = "正在啟動更新器"
             isInstalling = true
+            hasRequestedTerminationForUpdate = false
             statusMessage = "更新已開始；下載與建置期間請保持 DeskPet 開啟。"
             updateOutputBuffer.removeAll(keepingCapacity: true)
             updateOutputPipe = outputPipe
@@ -182,9 +186,27 @@ final class SoftwareUpdateService: ObservableObject {
               (0...100).contains(percent) else { return }
         let stage = String(parts[2]).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !stage.isEmpty, stage.count <= 120 else { return }
+
         installProgress = max(installProgress, percent / 100)
         installStage = stage
         statusMessage = "更新進度 \(installPercentage)%：\(stage)"
+
+        guard percent >= 88,
+              stage.contains("準備替換"),
+              !hasRequestedTerminationForUpdate else { return }
+
+        hasRequestedTerminationForUpdate = true
+        installStage = "準備重新啟動"
+        statusMessage = "新版已建置完成；DeskPet 將先關閉，更新器確認舊程序結束後才啟動新版。"
+
+        // The updater redirects its stdout/stderr away from this process immediately
+        // after the 88% hand-off message. Give that redirect a brief moment to settle,
+        // then terminate this exact process. The updater waits on our PID before it
+        // replaces the app bundle, preventing old/new DeskPet instances from overlap.
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            NSApp.terminate(nil)
+        }
     }
 
     private func handleUpdaterTermination(status: Int32) {
@@ -214,6 +236,7 @@ final class SoftwareUpdateService: ObservableObject {
         isInstalling = false
         installProgress = 0
         installStage = ""
+        hasRequestedTerminationForUpdate = false
     }
 
     private static func isValidVersion(_ value: String) -> Bool {
