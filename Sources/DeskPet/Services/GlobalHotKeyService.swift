@@ -118,7 +118,10 @@ final class GlobalHotKeyService: ObservableObject {
             return false
         }
 
-        let target = GetEventDispatcherTarget()
+        // Bind the Carbon hotkey handler to this application instead of the
+        // process-wide event dispatcher. This is more deterministic for an
+        // LSUIElement/accessory app on newer macOS releases.
+        let target = GetApplicationEventTarget()
 
         var eventType = EventTypeSpec(
             eventClass: OSType(kEventClassKeyboard),
