@@ -3,6 +3,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG="$ROOT_DIR/Sources/DeskPet/Stores/AIConfigurationStore.swift"
+PARSER="$ROOT_DIR/Sources/DeskPet/Services/GeminiResponseParser.swift"
+INTENT="$ROOT_DIR/Sources/DeskPet/Services/GeminiIntentInterpreter.swift"
+TASK="$ROOT_DIR/Sources/DeskPet/Services/GeminiNaturalTaskActionInterpreter.swift"
 
 # DeskPet should default to the latest stable Flash model used by this release.
 grep -qF 'static let defaultModelID = "gemini-3.6-flash"' "$CONFIG"
@@ -31,4 +34,27 @@ fi
 grep -qF 'migrateRetiredModelSelectionIfNeeded()' "$CONFIG"
 grep -qF 'UserDefaults.standard.set(Self.defaultModelID, forKey: DefaultsKey.modelID)' "$CONFIG"
 
-echo "DeskPet Gemini model contract passed"
+# Gemini 3 can return thought parts. DeskPet must ignore them and combine only
+# final-answer text before decoding structured JSON.
+grep -qF 'let thought: Bool?' "$PARSER"
+grep -qF 'part.thought != true' "$PARSER"
+grep -qF 'stripMarkdownFence' "$PARSER"
+
+if grep -qF 'compactMap(\.text).first' "$INTENT" "$TASK"; then
+  echo "ERROR: Gemini parser still assumes first text part is the final answer" >&2
+  exit 1
+fi
+
+grep -qF 'GeminiResponseParser.finalAnswerText(from: parts)' "$INTENT"
+grep -qF 'GeminiResponseParser.finalAnswerText(from: parts)' "$TASK"
+grep -qF 'GeminiResponseParser.decodeStructuredOutput' "$INTENT"
+grep -qF 'GeminiResponseParser.decodeStructuredOutput' "$TASK"
+
+# These are extraction/classification requests, so minimal thinking is preferred
+# and the output cap must leave enough room for the final JSON payload.
+grep -qF '"thinkingConfig": ["thinkingLevel": "minimal"]' "$INTENT"
+grep -qF '"thinkingConfig": ["thinkingLevel": "minimal"]' "$TASK"
+grep -qF '"maxOutputTokens": 1200' "$INTENT"
+grep -qF '"maxOutputTokens": 1800' "$TASK"
+
+echo "DeskPet Gemini model and response-parser contract passed"
