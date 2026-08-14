@@ -23,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var naturalTaskCommandWindowController: NaturalTaskCommandWindowController?
     private var workDiaryWindowController: WorkDiaryWindowController?
     private var calendarQueryWindowController: CalendarQueryWindowController?
+    private var statusMenuController: StatusMenuController?
     private var hotKeyService: GlobalHotKeyService?
     private var voiceHotKeyService: VoiceHotKeyService?
 
@@ -161,6 +162,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         self.panelController = panelController
         panelController.show()
+
+        statusMenuController = StatusMenuController(
+            onQuickCapture: { [weak panelController] in panelController?.showCapture() },
+            onOpenInbox: { [weak inboxController] in inboxController?.showInbox() },
+            onOpenTaskDigest: { [weak digestController] in digestController?.showDigest() },
+            onOpenCalendarQuery: { [weak calendarQueryController] in calendarQueryController?.showCalendarQuery() },
+            onOpenSettings: { [weak settingsController] in settingsController?.showSettings() }
+        )
+
         ambientMonitor.start()
         softwareUpdate.checkIfDue()
 
