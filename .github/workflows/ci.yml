@@ -32,6 +32,7 @@ jobs:
           bash -n script/install_local.sh
           bash -n script/install_or_update.sh
           bash -n script/check_public_repo.sh
+          bash -n tests/desktop_interaction_contract.test.sh
 
       - name: Validate updater entrypoint
         run: ./tests/updater_cli.test.sh
@@ -41,6 +42,9 @@ jobs:
 
       - name: Validate administrative-title UI
         run: ./tests/administrative_title_ui.test.sh
+
+      - name: Validate desktop interaction contract
+        run: bash tests/desktop_interaction_contract.test.sh
 
       - name: Validate app icon
         run: ./tests/app_icon_contract.test.sh
