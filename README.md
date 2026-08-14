@@ -9,9 +9,9 @@
 
 DeskPet 是一隻住在 macOS 桌面的工作代理人。它把快速記事、規則或 Gemini 理解、人工確認、Calendar／Reminders／GAS 任務執行，以及每日工作日誌串成同一條可追蹤的工作流。
 
-**目前版本：1.1.3.1 — RC1.1.3.1 / Calendar Authorization & Stability**
+**目前版本：1.1.3.2 — RC1.1.3.2 / EventKit Permission State Fix**
 
-最新 RC：[`v1.1.3.1`](https://github.com/mihozip/DeskPet/releases/tag/v1.1.3.1)
+最新 RC：[`v1.1.3.2`](https://github.com/mihozip/DeskPet/releases/tag/v1.1.3.2)
 
 DeskPet 是以 Swift / SwiftUI / AppKit 開發的 macOS 桌面工具。它不是要取代既有的任務系統，而是提供一個隨手可用的桌面入口，把零散資訊轉成可追蹤的工作，也能在使用者主動查詢時把既有行事曆整理成可讀的工作情境。
 
@@ -40,6 +40,7 @@ Work Diary
 - Calendar Intelligence：用自然語句查詢 macOS 行事曆，可依年度、月份、地點、關鍵字，以及講師／研習／會議類型整理結果。
 - Calendar Intelligence 的事件內容只在本機解析與篩選，不會將行事曆事件送往 Gemini。
 - Apple Calendar / Reminders 權限分離：按「行事曆」只要求 Calendar，按「提醒事項」只要求 Reminders，不會互相連帶要求。
+- 權限畫面只採用 macOS EventKit `authorizationStatus` 的實際結果，不再先自行推定「已授權」。拒絕後會引導到系統設定，不會反覆要求一個 macOS 不會再次彈出的授權視窗。
 - 因 DeskPet 支援既有行程查詢，Calendar 在 macOS 14+ 使用完整事件存取；Reminders 仍由獨立按鈕要求完整存取。
 - Calendar / Reminders 的新增動作都必須人工確認後才執行。
 - Google Apps Script Gateway：建立、讀取、更新校務工作任務。
@@ -79,7 +80,7 @@ RC1.1.3 起，白帥帥不再使用永遠置頂的 floating window level。一�
 
 未指定日期範圍時，Calendar Intelligence 預設查詢當年度。講師行程以 `講師`、`主講`、`授課`、`演講` 等明確角色訊號判斷，並排除 `參加`、`報名`、`學員`、`受訓` 等參與者訊號。若希望辨識更穩定，建議在行程標題使用 `[講師]`，或在備註標示 `角色：講師`。
 
-RC1.1.3.1 將設定頁的 Calendar 權限改為完整事件存取，原因是 DeskPet 不只建立事件，也需要讀取既有事件提供 Calendar Intelligence。Calendar 與 Reminders 仍是兩條完全獨立的 EventKit 授權路徑；要求 Calendar 不會同時要求 Reminders。授權完成後會重新整理 EventKit store，設定頁在顯示以及 App 回到前景時也會重新同步系統權限狀態。
+RC1.1.3.2 將 Apple Action Layer 改成單一權限狀態機：設定頁是 Calendar / Reminders 唯一的授權入口，顯示狀態只採用 EventKit 實際回報；Calendar Intelligence 本身不再偷偷觸發第二套授權要求。若 Calendar 只有 write-only 權限，DeskPet 會明確顯示「可新增但不可查詢」，需要在「設定 → 整合」升級成完整存取。若曾拒絕權限，請使用畫面上的「開啟系統設定」處理，因為 macOS 通常不會對已拒絕的同一請求再次顯示首次授權視窗。
 
 Google Calendar 必須先在 macOS「行事曆」中可見，DeskPet 才能透過 EventKit 讀取。
 
@@ -100,7 +101,7 @@ cd DeskPet
 ./script/build_and_run.sh
 ```
 
-開發腳本會建立 `dist/DeskPet.app` 並啟動。若公開原始碼未包含自訂桌寵 PNG，DeskPet 會使用中性 fallback UI；詳見 `Sources/DeskPet/Resources/README.md`。
+開發腳本會建立 `dist/DeskPet.app` 並啟動。RC1.1.3.2 起，本機 build 會優先使用 Keychain 中可用的 `Developer ID Application` 簽章，其次使用 `Apple Development`，只有找不到穩定 Apple code-signing identity 時才退回 ad-hoc。這能降低每次重新 build 後 macOS TCC 把 DeskPet 視為另一個程式而重新要求 Calendar／Reminders 等權限的機率。若公開原始碼未包含自訂桌寵 PNG，DeskPet 會使用中性 fallback UI；詳見 `Sources/DeskPet/Resources/README.md`。
 
 ### 本機安裝
 
@@ -134,9 +135,9 @@ curl --fail --location --show-error \
 bash /tmp/DeskPetUpdater.sh
 ```
 
-更新不會刪除 `Application Support/DeskPet`、`UserDefaults` 或 Keychain 憑證。需要 Xcode 或 Apple Command Line Tools；執行紀錄位於 `~/Library/Logs/DeskPet/update.log`。
+更新不會刪除 `Application Support/DeskPet`、`UserDefaults` 或 Keychain 憑證。需要 Xcode 或 Apple Command Line Tools；執行紀錄位於 `~/Library/Logs/DeskPet/update.log`。來源更新器在本機重新 build 時，也會優先沿用 Keychain 中可用的穩定 Apple code-signing identity。
 
-目前 GitHub Release 的 RC ZIP 使用 ad-hoc 簽章，適合測試；尚未使用 Apple Developer ID 簽署或 notarize。
+**目前 GitHub Release 的 RC ZIP 仍是 ad-hoc 簽章**，因公開 Actions workflow 尚未配置 Developer ID 憑證。因此程式內的授權狀態已可穩定、如實顯示，但不同 GitHub RC binary 之間是否延續 TCC 隱私權授權仍不能完全保證。若要讓公開下載版跨版本穩定沿用 Calendar／Reminders 等權限，後續應配置 Developer ID Application 簽署並進行 notarization。
 
 ### Bundle ID
 
