@@ -4,17 +4,21 @@ All notable changes to DeskPet are documented here. Release Candidate interfaces
 
 ## [1.1.3.1] - 2026-08
 
-RC1.1.3.1 trash-cleanup reliability hotfix.
+RC1.1.3.1 Calendar authorization and development-workflow stability update.
 
 ### Fixed
-- Replaced Finder AppleScript trash cleanup with direct `FileManager` removal from the current user's `~/.Trash` and accessible mounted-volume `.Trashes/<UID>` directories.
-- Trash cleanup no longer depends on Finder Automation / Apple Events permission, which could fail silently or be unavailable for ad-hoc RC builds.
-- Cleanup now runs off the main thread and reports empty Trash, successful deletion count, partial failures, or complete failure explicitly.
-- Removed the obsolete Finder Apple Events usage description from debug and release app bundles.
+- The Calendar permission button now requests full event access on macOS 14+ because DeskPet includes Calendar Intelligence and must be able to read existing events as well as create new ones.
+- Calendar and Reminders remain strictly separate EventKit authorization paths; requesting Calendar never invokes the Reminders permission API, and vice versa.
+- EventKit stores are reset after a newly granted permission so stores created before authorization do not retain stale source state.
+- Settings refreshes Calendar / Reminders authorization when the view appears and whenever DeskPet becomes active again, so permission state no longer depends on restarting the app.
+
+### Changed
+- Removed the experimental Trash cleanup command and its service implementation.
+- CI no longer runs on every intermediate feature-branch push. Automatic CI is limited to `main` pushes and pull requests, with concurrency cancellation for superseded runs, reducing failure-notification noise during development.
 
 ### Safety
-- Empty Trash remains destructive and always requires explicit confirmation before any deletion begins.
-- DeskPet only deletes children of recognized per-user Trash directories; it never recursively targets arbitrary user-selected paths.
+- Calendar, Reminders and GAS writes retain their existing human-confirmation boundaries.
+- The release version remains `1.1.3.1`; this refresh replaces the RC asset and release notes rather than introducing another version number.
 
 ## [1.1.3.0] - 2026-08
 
@@ -40,20 +44,15 @@ Release Candidate 1.1.3 — Weekly Updates, Contextual GAS Menus and Non-Blockin
 
 Release Candidate 1.1.2 — Permission Isolation, Safe Update Handoff and Compact Menu.
 
-### Added
-- Added a confirmation-gated `清理垃圾桶…` command under the Tools menu. DeskPet asks again before permanently deleting Trash contents and only then sends Finder the empty-trash command.
-- Added the required Apple Events usage description for the Finder automation used by Trash cleanup.
-
 ### Changed
 - Consolidated the white DeskPet context menu into compact top-level groups: Quick Capture, Work, Query & Input, Tools, Sleep/Wake and Quit.
 - Consolidated the menu-bar fallback into Work, Query and Tools submenus instead of exposing every action at the top level.
-- Calendar and Reminders authorization now use separate `EKEventStore` instances and only refresh the entity that was requested.
+- Calendar and Reminders authorization use separate `EKEventStore` instances and only refresh the entity that was requested.
 - Settings serialize Apple permission requests so Calendar and Reminders authorization cannot be started concurrently.
-- The in-app updater now passes the current DeskPet PID to the updater. After the new build is ready, DeskPet terminates normally; the updater waits for that exact PID to disappear before replacing the bundle and launching one new instance.
+- The in-app updater passes the current DeskPet PID to the updater. After the new build is ready, DeskPet terminates normally; the updater waits for that exact PID to disappear before replacing the bundle and launching one new instance.
 - Standalone updater mode also waits until all existing DeskPet processes are gone before launching the replacement.
 
 ### Safety
-- Empty Trash is never automatic and always requires an explicit destructive confirmation.
 - Calendar, Reminders and GAS write operations retain their existing human-confirmation boundaries.
 - The updater preserves the existing rollback backup and code-sign verification flow.
 
