@@ -9,9 +9,9 @@
 
 DeskPet 是一隻住在 macOS 桌面的工作代理人。它把快速記事、規則或 Gemini 理解、人工確認、Calendar／Reminders／GAS 任務執行，以及每日工作日誌串成同一條可追蹤的工作流。
 
-**目前版本：1.1.3.2 — RC1.1.3.2 / EventKit Permission State Fix**
+**目前版本：1.1.3.3 — RC1.1.3.3 / Gemini 3 Model Refresh**
 
-最新 RC：[`v1.1.3.2`](https://github.com/mihozip/DeskPet/releases/tag/v1.1.3.2)
+最新 RC：[`v1.1.3.3`](https://github.com/mihozip/DeskPet/releases/tag/v1.1.3.3)
 
 DeskPet 是以 Swift / SwiftUI / AppKit 開發的 macOS 桌面工具。它不是要取代既有的任務系統，而是提供一個隨手可用的桌面入口，把零散資訊轉成可追蹤的工作，也能在使用者主動查詢時把既有行事曆整理成可讀的工作情境。
 
@@ -152,6 +152,14 @@ Keychain service 會跟隨實際 App Bundle Identifier。
 ## Gemini
 
 DeskPet 不內建 API Key。使用者需在「設定 → AI」自行輸入，秘密值只寫入 macOS Keychain。
+
+RC1.1.3.3 起，模型選單只保留目前 DeskPet 使用情境所需的 Gemini 3.5+ 文字模型：
+
+- `gemini-3.6-flash`：預設模型，兼顧速度、推理與多模態能力。
+- `gemini-3.5-flash`：較高品質的穩定 Flash 選項。
+- `gemini-3.5-flash-lite`：高吞吐、較低成本選項。
+
+Gemini 2.x 已從選單移除；若既有設定仍保存 2.x 或其他已不在清單中的 model ID，更新後會自動遷移到 `gemini-3.6-flash`。截至本版發布時，Google 官方 Gemini API 尚未公布 Gemini 3.7 的正式 model ID，因此 DeskPet 不會加入推測性的 3.7 選項；官方發布後再依實際 model ID 更新。
 
 目前 UI 提供的 Gemini model ID 以 Google 官方 Gemini API 型號為基礎；模型生命週期可能變更，維護者應在 release 前重新核對官方文件。
 
