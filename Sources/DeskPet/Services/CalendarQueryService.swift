@@ -35,27 +35,33 @@ final class CalendarQueryService {
     }
 
     func query(_ text: String, referenceDate: Date = Date()) async throws -> CalendarQueryResult {
+        let query = parser.parse(text, referenceDate: referenceDate)
+        let summaries = try await events(in: query.interval)
+        let events = summaries.filter { matcher.matches($0, query: query) }
+        return CalendarQueryResult(query: query, events: events)
+    }
+
+    /// Read Calendar events in a concrete interval without invoking natural-language
+    /// parsing. This is shared by Calendar Intelligence and the 1.2 Work Context
+    /// surface. Event contents remain local and are never sent to Gemini.
+    func events(in interval: DateInterval) async throws -> [CalendarEventSummary] {
         try requireReadableAccess()
 
         // Create the store only after authorization is known to be readable.
         // This avoids keeping a pre-authorization EKEventStore around with stale
         // source/cache state and keeps permission prompting in one place: Settings.
         let eventStore = EKEventStore()
-        let query = parser.parse(text, referenceDate: referenceDate)
         let predicate = eventStore.predicateForEvents(
-            withStart: query.interval.start,
-            end: query.interval.end,
+            withStart: interval.start,
+            end: interval.end,
             calendars: nil
         )
-        let events = eventStore.events(matching: predicate)
+        return eventStore.events(matching: predicate)
             .map { summary(from: $0) }
-            .filter { matcher.matches($0, query: query) }
             .sorted {
                 if $0.startDate != $1.startDate { return $0.startDate < $1.startDate }
                 return $0.title.localizedStandardCompare($1.title) == .orderedAscending
             }
-
-        return CalendarQueryResult(query: query, events: events)
     }
 
     private func requireReadableAccess() throws {
