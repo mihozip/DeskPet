@@ -7,9 +7,70 @@
 
 > **Turn every thought on your desktop into trackable work.**
 
-DeskPet is a macOS desktop work agent built with Swift, SwiftUI and AppKit. It connects quick capture, optional Gemini interpretation, human confirmation, Calendar / Reminders / Google Apps Script task actions, ambient monitoring, duplicate detection and a local work-event diary.
+DeskPet is a macOS desktop work agent built with Swift, SwiftUI and AppKit. It connects quick capture, optional Gemini interpretation, human-confirmed Calendar / Reminders / Google Apps Script actions, ambient monitoring, and a local Work Diary.
 
-Current version: **0.9.5.1 — Custom App Icon (pre-1.0 / RC)**.
+**Current mainline version: 1.2.0.0 — RC1.2 / Work Context**
+
+Published install packages are available from GitHub Releases. `main` is the latest CI-validated source line.
+
+## RC1.2: Work Context
+
+RC1.2 adds a deterministic `WorkContextEngine` that combines active GAS tasks, Inbox items, WorkEvents, local snooze state, and local Calendar events into three orientation buckets:
+
+- **Now** — what deserves attention now.
+- **Next** — what should follow.
+- **Later** — what should remain visible without interrupting current focus.
+
+```text
+GAS Tasks ───────┐
+Inbox ───────────┤
+WorkEvents ──────┤
+Snooze ──────────┼─> WorkContextEngine ─> Now / Next / Later
+Local Calendar ──┘
+```
+
+The context layer does not create a second task database. Calendar data stays local to EventKit and is never sent to Gemini. Calendar read failures degrade gracefully to task / Inbox / WorkEvent context. Waiting tasks do not take over Now even when high-priority, and all-day events do not replace the active-focus headline.
+
+See [`docs/RC1_2_WORK_CONTEXT.md`](docs/RC1_2_WORK_CONTEXT.md) for the design and privacy boundary.
+
+## Core features
+
+- Desktop pet with drag, size and animation controls.
+- Menu-bar fallback entry point.
+- Global quick capture into a local Inbox.
+- Smart Inbox with local parsing and optional Gemini interpretation.
+- Calendar Intelligence with local natural-language filtering.
+- Work Context: Now / Next / Later.
+- Today Brief, Waiting Radar, Next Action, Daily Wrap and Weekly Review.
+- Append-style local Work Diary built from `WorkEvent` records.
+- Optional GAS Gateway for school-administration tasks.
+- Ambient task monitoring after GAS is linked.
+- Natural-language and voice task proposals with explicit confirmation before writes.
+- Inbox → Task provenance and Duplicate Guard.
+- Local-only Snooze and derived Pet Work State.
+- Rollback-aware software update workflow.
+
+## Safety and privacy
+
+DeskPet keeps read, recommendation and mutation boundaries separate:
+
+- Calendar Intelligence and Work Context are read-only.
+- Calendar event content is not sent to Gemini.
+- Calendar / Reminders / GAS writes require explicit human confirmation.
+- Gemini API keys and GAS tokens are stored in macOS Keychain.
+- Work Context creates no additional persistent task or calendar database.
+
+See [`PRIVACY.md`](PRIVACY.md), [`SECURITY.md`](SECURITY.md), and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Gemini
+
+Current picker:
+
+- `gemini-3.6-flash` — default / recommended
+- `gemini-3.5-flash`
+- `gemini-3.5-flash-lite`
+
+Gemini 2.x options are retired. As of 2026-08-18, Google has not published a verifiable Gemini 3.7 Flash Gemini API model identifier, so DeskPet does not guess `gemini-3.7-flash`. See [`docs/GEMINI_MODELS.md`](docs/GEMINI_MODELS.md).
 
 ## Quick start
 
@@ -21,14 +82,16 @@ cd DeskPet
 
 Requirements: macOS 13+, Swift 5.9+ / Xcode or Apple Command Line Tools.
 
-Installed builds can check and install updates from **Settings → General → Software Update**. The app shows the active stage and percentage while downloading, building and verifying, then closes only when it is ready to replace and relaunch itself. Users of older builds can bootstrap the same rollback-aware updater with the command documented in the main README. Updating preserves Application Support data, preferences and Keychain credentials.
+Local install:
 
-Gemini and Google Apps Script integrations are optional and require users to provide their own credentials. No private API key, Spreadsheet ID, GAS deployment URL or token is included in this repository.
+```bash
+./script/install_local.sh
+```
 
-Four default AI-assisted redrawn white-cat illustrations are included for idle, listening, success and sleep states. The project maintainer has approved their public redistribution; see [ASSETS.md](ASSETS.md) for provenance and licensing notes.
+Updater, signing, rollback and legacy bootstrap details are documented in [`docs/UPDATING.md`](docs/UPDATING.md).
 
-The Gateway integrates with [`mihozip/school-admin-daily-dashboard`](https://github.com/mihozip/school-admin-daily-dashboard) through a separate token-protected Web App. See the main [Traditional Chinese README](README.md), [privacy notes](PRIVACY.md), [architecture](docs/ARCHITECTURE.md), [security policy](SECURITY.md), and the [Dashboard integration guide](docs/GAS_PROJECT_INTEGRATION.md).
+Gemini and GAS integrations are optional and require user-supplied credentials. No private API key, Spreadsheet ID, deployment URL or token is included in this repository.
 
-DeskPet resolves the administrative title in this order: local override, Dashboard `ROLE_NAME`, then the `總務` fallback. One title now controls the workbench, digest, work reminder, task-action labels, related task messages and the owner of tasks created by DeskPet, without changing Dashboard profile keys. The retired 0.9.3.0 interface-name preference is migrated automatically.
+The Gateway integrates with [`mihozip/school-admin-daily-dashboard`](https://github.com/mihozip/school-admin-daily-dashboard) through a separate token-protected Web App. See [`docs/GAS_PROJECT_INTEGRATION.md`](docs/GAS_PROJECT_INTEGRATION.md).
 
-Source code and the maintainer-supplied default artwork are distributed under the [MIT License](LICENSE). Third-party or contributor-supplied assets retain their own terms.
+Source code and maintainer-approved default artwork are distributed under the [MIT License](LICENSE). Asset provenance is documented in [ASSETS.md](ASSETS.md).
