@@ -23,8 +23,8 @@ struct WorkContextEngine {
     ) -> WorkContextSnapshot {
         let activeTasks = tasks.filter { task in
             guard !Self.isDone(task) else { return false }
-            guard let snoozedUntil = snoozedUntil[task.taskId] else { return true }
-            return snoozedUntil <= now
+            guard let snoozeExpiry = snoozedUntil[task.taskId] else { return true }
+            return snoozeExpiry <= now
         }
         let candidates = dailyWorkService.sortedCandidates(from: activeTasks, now: now)
         let pendingInbox = inboxItems
@@ -39,7 +39,9 @@ struct WorkContextEngine {
                 if $0.startDate != $1.startDate { return $0.startDate < $1.startDate }
                 return $0.title.localizedStandardCompare($1.title) == .orderedAscending
             }
-        let currentEvent = visibleCalendar.first { $0.startDate <= now && $0.endDate > now }
+        // All-day events provide background context but should not continuously
+        // replace the user's active focus headline throughout the day.
+        let currentEvent = visibleCalendar.first { !$0.isAllDay && $0.startDate <= now && $0.endDate > now }
         let nextEvent = visibleCalendar.first { $0.startDate > now }
         let recentActivity = workEvents
             .filter { $0.timestamp <= now && calendar.isDate($0.timestamp, inSameDayAs: now) }
@@ -59,12 +61,13 @@ struct WorkContextEngine {
             append(calendarItem(currentEvent, bucket: .now), to: &nowItems, limit: 3)
         }
 
-        for candidate in candidates where [.overdue, .dueToday, .highPriority].contains(candidate.tier) {
+        for candidate in candidates
+        where !Self.isWaiting(candidate.task) && [.overdue, .dueToday, .highPriority].contains(candidate.tier) {
             append(taskItem(candidate, bucket: .now), to: &nowItems, limit: 3)
         }
 
         if nowItems.isEmpty,
-           let first = candidates.first(where: { $0.tier != .waiting }) {
+           let first = candidates.first(where: { !Self.isWaiting($0.task) }) {
             append(taskItem(first, bucket: .now), to: &nowItems, limit: 3)
         }
 
@@ -77,7 +80,7 @@ struct WorkContextEngine {
             append(calendarItem(nextEvent, bucket: .next), to: &nextItems, limit: 3)
         }
 
-        for candidate in candidates where candidate.tier != .waiting {
+        for candidate in candidates where !Self.isWaiting(candidate.task) {
             append(taskItem(candidate, bucket: .next), to: &nextItems, limit: 3)
         }
 
@@ -85,7 +88,7 @@ struct WorkContextEngine {
             append(inboxItem(firstInbox, bucket: .next, now: now), to: &nextItems, limit: 3)
         }
 
-        for candidate in candidates where candidate.tier == .waiting {
+        for candidate in candidates where Self.isWaiting(candidate.task) {
             append(taskItem(candidate, bucket: .later), to: &laterItems, limit: 5)
         }
 
@@ -152,14 +155,17 @@ struct WorkContextEngine {
         let task = candidate.task
         var details: [String] = []
 
-        switch candidate.tier {
-        case .overdue: details.append("逾期")
-        case .dueToday: details.append("今天到期")
-        case .highPriority: details.append("高優先")
-        case .waiting:
+        if Self.isWaiting(task) {
             let target = task.waitingFor?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             details.append(target.isEmpty ? "等待中" : "等待：\(target)")
-        case .normal: break
+        } else {
+            switch candidate.tier {
+            case .overdue: details.append("逾期")
+            case .dueToday: details.append("今天到期")
+            case .highPriority: details.append("高優先")
+            case .waiting: details.append("等待中")
+            case .normal: break
+            }
         }
 
         if let deadline = task.deadlineText, !deadline.isEmpty {
@@ -224,5 +230,11 @@ struct WorkContextEngine {
         ["已完成", "取消", "completed", "done", "cancelled"].contains(
             task.status?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
         )
+    }
+
+    private static func isWaiting(_ task: GASTaskDigest.Task) -> Bool {
+        let target = task.waitingFor?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let status = task.status?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        return !target.isEmpty || task.isWaiting || ["等待他人", "待確認", "waiting", "blocked"].contains(status)
     }
 }
