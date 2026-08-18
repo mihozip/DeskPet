@@ -5,11 +5,11 @@ import XCTest
 final class WorkContextEngineTests: XCTestCase {
     private let engine = WorkContextEngine()
 
-    func testUrgentTaskGoesNowAndWaitingTaskGoesLater() {
+    func testUrgentTaskGoesNowAndWaitingTaskGoesLaterEvenWhenPriorityIsHigh() {
         let now = date("2026-08-18 10:00:00")
         let tasks = [
             task("urgent", name: "處理採購公告", priority: "高"),
-            task("waiting", name: "等廠商估價", status: "等待他人", waitingFor: "廠商")
+            task("waiting", name: "等廠商估價", status: "等待他人", priority: "高", waitingFor: "廠商")
         ]
 
         let snapshot = engine.snapshot(
@@ -43,6 +43,23 @@ final class WorkContextEngineTests: XCTestCase {
         XCTAssertEqual(snapshot.nowItems.compactMap { $0.calendarEvent?.id }, ["current"])
         XCTAssertEqual(snapshot.nextItems.compactMap { $0.calendarEvent?.id }, ["next"])
         XCTAssertEqual(snapshot.headline, "現在正在進行：行政會議")
+    }
+
+    func testAllDayEventDoesNotReplaceActiveFocusHeadline() {
+        let now = date("2026-08-18 10:00:00")
+        let allDay = event("all-day", "全日備註", "2026-08-18 00:00:00", "2026-08-19 00:00:00", isAllDay: true)
+        let urgent = task("urgent", name: "確認採購公告", priority: "高")
+
+        let snapshot = engine.snapshot(
+            tasks: [urgent],
+            inboxItems: [],
+            workEvents: [],
+            calendarEvents: [allDay],
+            now: now
+        )
+
+        XCTAssertNil(snapshot.currentEvent)
+        XCTAssertEqual(snapshot.headline, "現在最值得處理：確認採購公告")
     }
 
     func testUpcomingEventWithinNinetyMinutesShapesHeadline() {
@@ -137,7 +154,13 @@ final class WorkContextEngineTests: XCTestCase {
         )
     }
 
-    private func event(_ id: String, _ title: String, _ start: String, _ end: String) -> CalendarEventSummary {
+    private func event(
+        _ id: String,
+        _ title: String,
+        _ start: String,
+        _ end: String,
+        isAllDay: Bool = false
+    ) -> CalendarEventSummary {
         CalendarEventSummary(
             id: id,
             title: title,
@@ -146,7 +169,7 @@ final class WorkContextEngineTests: XCTestCase {
             location: nil,
             notes: nil,
             calendarName: "測試",
-            isAllDay: false
+            isAllDay: isAllDay
         )
     }
 
