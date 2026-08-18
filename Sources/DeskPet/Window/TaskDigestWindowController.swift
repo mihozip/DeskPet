@@ -24,13 +24,13 @@ final class TaskDigestWindowController: NSWindowController, NSWindowDelegate {
         self.onOpenTask = onOpenTask
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 820, height: 650),
+            contentRect: NSRect(x: 0, y: 0, width: 900, height: 700),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "DeskPet 今日工作"
-        window.minSize = NSSize(width: 760, height: 580)
+        window.minSize = NSSize(width: 820, height: 620)
         window.isReleasedWhenClosed = false
         window.center()
         window.contentView = NSHostingView(
@@ -41,6 +41,7 @@ final class TaskDigestWindowController: NSWindowController, NSWindowDelegate {
                 workEventStore: workEventStore,
                 snoozeStore: snoozeStore,
                 viewState: viewState,
+                calendarQueryService: CalendarQueryService(),
                 onOpenTask: onOpenTask,
                 onOpenTaskAction: onOpenTaskAction
             )
