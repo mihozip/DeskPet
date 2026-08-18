@@ -1,6 +1,57 @@
 # Changelog
 
-All notable changes to DeskPet are documented here. Release Candidate interfaces and stored-data formats may still evolve before the final 1.0 release.
+All notable changes to DeskPet are documented here. Release Candidate interfaces and stored-data formats may still evolve between RC milestones.
+
+## [1.2.0.0] - 2026-08
+
+Release Candidate 1.2 — Work Context / Now, Next, Later.
+
+### Added
+- Added deterministic `WorkContextEngine` derived from active GAS tasks, Inbox items, WorkEvents, Snooze state, and local Calendar events.
+- Added `Now / Next / Later` context cards to the existing Today Work surface.
+- Added a deterministic focus headline that can combine an upcoming Calendar event with the highest-ranked actionable task.
+- Added a concrete interval-read API to `CalendarQueryService` so Work Context can reuse the local EventKit boundary without invoking natural-language parsing.
+- Added Work Context unit tests covering task priority, waiting state, Calendar context, all-day events, Snooze, deduplication, and recent activity.
+- Added `docs/RC1_2_WORK_CONTEXT.md` and updated the main architecture documentation.
+
+### Behavior
+- Waiting tasks are treated as blocked / deferred context even when task priority is high, so they do not incorrectly take over `Now`.
+- Active non-all-day Calendar events can provide immediate context.
+- All-day Calendar events remain visible without replacing the active-focus headline for the entire day.
+- Calendar read failures degrade gracefully to GAS tasks, Inbox, WorkEvents, and Snooze context.
+- Existing Today Brief, Waiting Radar, Daily Wrap, Weekly Review, task interaction, and human-confirmed mutation flows remain intact.
+
+### Privacy / Safety
+- Work Context does not create another persistent task or calendar database.
+- Calendar event content remains local to EventKit and is not sent to Gemini.
+- Work Context prioritization is deterministic and does not require Gemini.
+- Calendar, Reminders, and GAS writes retain their existing human-confirmation boundaries.
+
+### Documentation
+- Main and English README now describe RC1.2 and the current mainline version.
+- Architecture documentation now includes the Context layer and its ownership boundaries.
+- Gemini model policy records the 2026-08-18 verification that no first-party Gemini API model ID for Gemini 3.7 Flash is yet available; DeskPet therefore does not guess `gemini-3.7-flash`.
+
+## [1.1.3.4] - 2026-08
+
+RC1.1.3.4 improves Gemini 3 structured-output reliability.
+
+### Fixed
+- Gemini response parsing now recognizes `thought` parts and combines only final-answer text before structured JSON decoding.
+- DeskPet no longer assumes the first text part in `content.parts` is the final JSON answer.
+- Structured output tolerates occasional Markdown JSON code fences before decoding.
+- JSON decoding failures report more specific missing-field, type-mismatch, and corrupted-data diagnostics.
+- `MAX_TOKENS` truncation now produces an explicit error instead of a generic format failure.
+
+### Changed
+- Smart Inbox and natural task extraction use Gemini 3 `thinkingLevel=minimal` because these paths are extraction / classification workloads.
+- Structured-output token limits were increased to reduce JSON truncation risk.
+
+### Validation
+- Gemini model / response-parser contract.
+- Swift tests.
+- Public repository checks.
+- Release app build and code-sign verification.
 
 ## [1.1.3.3] - 2026-08
 
