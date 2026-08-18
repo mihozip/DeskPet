@@ -10,6 +10,9 @@ enum DailyWorkSection: String, CaseIterable, Identifiable {
 
 final class DailyWorkViewState: ObservableObject {
     @Published var selectedSection: DailyWorkSection = .today
+    @Published var calendarEvents: [CalendarEventSummary] = []
+    @Published var calendarContextMessage: String?
+    @Published var isRefreshingCalendarContext = false
 }
 
 struct TaskDigestView: View {
@@ -19,16 +22,28 @@ struct TaskDigestView: View {
     @ObservedObject var workEventStore: WorkEventStore
     @ObservedObject var snoozeStore: SnoozeStore
     @ObservedObject var viewState: DailyWorkViewState
+    let calendarQueryService: CalendarQueryService
     let onOpenTask: (GASTaskDigest.Task) -> Void
     let onOpenTaskAction: (GASTaskDigest.Task, GASTaskMutationKind) -> Void
 
     private let service = DailyWorkService()
+    private let contextEngine = WorkContextEngine()
 
     private var snapshot: DailyWorkSnapshot {
         service.snapshot(
             tasks: monitor.digest?.tasks ?? [],
             inboxItems: captureStore.items,
             events: workEventStore.events,
+            snoozedUntil: snoozeStore.snoozedUntil
+        )
+    }
+
+    private var contextSnapshot: WorkContextSnapshot {
+        contextEngine.snapshot(
+            tasks: monitor.digest?.tasks ?? [],
+            inboxItems: captureStore.items,
+            workEvents: workEventStore.events,
+            calendarEvents: viewState.calendarEvents,
             snoozedUntil: snoozeStore.snoozedUntil
         )
     }
@@ -54,7 +69,10 @@ struct TaskDigestView: View {
         }
         .padding(20)
         .frame(minWidth: 760, minHeight: 580)
-        .onAppear { snoozeStore.purgeExpired() }
+        .task {
+            snoozeStore.purgeExpired()
+            await refreshCalendarContext()
+        }
     }
 
     private var header: some View {
@@ -71,29 +89,39 @@ struct TaskDigestView: View {
             }
             Spacer()
             PetWorkStateBadge(state: snapshot.petWorkState)
-            Button(monitor.isRefreshing ? "同步中…" : "重新同步") {
-                Task { await monitor.refresh(manual: true) }
+            Button(monitor.isRefreshing || viewState.isRefreshingCalendarContext ? "同步中…" : "重新同步") {
+                Task {
+                    await monitor.refresh(manual: true)
+                    await refreshCalendarContext()
+                }
             }
-            .disabled(monitor.isRefreshing)
+            .disabled(monitor.isRefreshing || viewState.isRefreshingCalendarContext)
         }
     }
 
     private func todayView(_ brief: TodayBrief) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 8) {
-                SummaryBadge(title: "逾期", value: brief.overdueCount, systemImage: "exclamationmark.triangle", tone: .red)
-                SummaryBadge(title: "今天", value: brief.dueTodayCount, systemImage: "calendar", tone: .blue)
-                SummaryBadge(title: "高優先", value: brief.highPriorityCount, systemImage: "flag.fill", tone: .orange)
-                SummaryBadge(title: "等待", value: brief.waitingCount, systemImage: "hourglass", tone: .purple)
-                SummaryBadge(title: "Inbox", value: brief.pendingInboxCount, systemImage: "tray", tone: .secondary)
-            }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                WorkContextOverviewView(
+                    snapshot: contextSnapshot,
+                    calendarContextMessage: viewState.calendarContextMessage,
+                    onOpenTask: onOpenTask
+                )
 
-            Text("建議先處理")
-                .font(.headline)
-            if brief.suggestions.isEmpty {
-                EmptyWorkView(title: "今天沒有急迫工作", detail: "Inbox 與工作日誌仍保留原始資料。", symbol: "checkmark.circle")
-            } else {
-                ScrollView {
+                HStack(spacing: 8) {
+                    SummaryBadge(title: "逾期", value: brief.overdueCount, systemImage: "exclamationmark.triangle", tone: .red)
+                    SummaryBadge(title: "今天", value: brief.dueTodayCount, systemImage: "calendar", tone: .blue)
+                    SummaryBadge(title: "高優先", value: brief.highPriorityCount, systemImage: "flag.fill", tone: .orange)
+                    SummaryBadge(title: "等待", value: brief.waitingCount, systemImage: "hourglass", tone: .purple)
+                    SummaryBadge(title: "Inbox", value: brief.pendingInboxCount, systemImage: "tray", tone: .secondary)
+                }
+
+                Text("建議先處理")
+                    .font(.headline)
+                if brief.suggestions.isEmpty {
+                    EmptyWorkView(title: "今天沒有急迫工作", detail: "Inbox 與工作日誌仍保留原始資料。", symbol: "checkmark.circle")
+                        .frame(minHeight: 150)
+                } else {
                     LazyVStack(spacing: 8) {
                         ForEach(Array(brief.suggestions.enumerated()), id: \.element.id) { index, candidate in
                             DailyTaskRow(
@@ -173,6 +201,27 @@ struct TaskDigestView: View {
                 ReviewList(title: "等待過久", values: review.waitingTooLong.map { "\($0.task.name)（\($0.waitingDays) 天）" }, empty: "沒有等待過久項目")
                 ReviewList(title: "下週優先事項", values: review.nextWeekPriorities.map(\.task.name), empty: "目前沒有建議事項")
             }
+        }
+    }
+
+    @MainActor
+    private func refreshCalendarContext() async {
+        guard !viewState.isRefreshingCalendarContext else { return }
+        viewState.isRefreshingCalendarContext = true
+        defer { viewState.isRefreshingCalendarContext = false }
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "zh_TW")
+        calendar.timeZone = TimeZone(identifier: "Asia/Taipei")!
+        let start = calendar.startOfDay(for: Date())
+        guard let end = calendar.date(byAdding: .day, value: 2, to: start) else { return }
+
+        do {
+            viewState.calendarEvents = try await calendarQueryService.events(in: DateInterval(start: start, end: end))
+            viewState.calendarContextMessage = nil
+        } catch {
+            viewState.calendarEvents = []
+            viewState.calendarContextMessage = "行事曆情境未載入；目前仍以任務、Inbox 與工作日誌產生建議。"
         }
     }
 
