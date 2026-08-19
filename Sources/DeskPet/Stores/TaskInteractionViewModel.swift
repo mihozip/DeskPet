@@ -246,7 +246,7 @@ final class TaskInteractionViewModel: ObservableObject {
             statusMessage = "已更新「\(updated.name)」。"
             await onUpdated()
         } catch {
-            statusMessage = "更新失敗：\(error.localizedDescription)"
+            statusMessage = "更新失敗：\(friendlyUpdateError(error))"
         }
     }
 
@@ -277,6 +277,14 @@ final class TaskInteractionViewModel: ObservableObject {
     private func changedValue(after: String?, before: String) -> String? {
         guard let after else { return nil }
         return after == before ? nil : after
+    }
+
+    private func friendlyUpdateError(_ error: Error) -> String {
+        let message = error.localizedDescription
+        if message.contains("不允許更新欄位") && message.contains("nextAction") {
+            return "校務任務 Gateway 版本過舊，尚不支援「下一步行動」。請更新 GAS/DeskPet_GAS_API_Gateway_v3.js 並重新部署 Web App。"
+        }
+        return message
     }
 
     private func recordWorkEvent(for updated: GASTaskDigest.Task, preview: GASTaskMutationPreview) {
