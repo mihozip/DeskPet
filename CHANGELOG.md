@@ -2,6 +2,22 @@
 
 All notable changes to DeskPet are documented here. Release Candidate interfaces and stored-data formats may still evolve between RC milestones.
 
+## [1.2.1.1] - 2026-08
+
+RC1.2.1.1 fixes confirmed GAS task updates so the request payload matches the change preview exactly.
+
+### Fixed
+- Task mutations now send only fields whose values actually changed; unchanged `nextAction` is no longer resent during a progress-only update.
+- Explicit field clearing is preserved as an empty string, while `nil` now consistently means “do not update this field”. This also fixes clearing `progress`.
+- The change preview now shows an explicit “清除” row when recent progress is cleared.
+- Work Diary entries no longer repeat an unchanged next action when only progress changed.
+- When a user really changes `nextAction` but the deployed GAS Gateway is too old to accept it, DeskPet now explains that the Gateway must be updated and redeployed instead of showing only the raw unsupported-field error.
+- No-op confirmations do not call the Gateway and instead report that there is nothing to write.
+
+### Validation
+- Added regression tests for progress-only updates, next-action clearing, progress clearing, no-op updates, stale-Gateway messaging, confirmation safety, and Work Diary diff behavior.
+- Existing human-confirmation boundaries remain unchanged.
+
 ## [1.2.1.0] - 2026-08
 
 Release Candidate 1.2.1 — Context Briefing.
@@ -15,8 +31,8 @@ Release Candidate 1.2.1 — Context Briefing.
 ### Behavior
 - DeskPet briefs the first useful context of the day once.
 - Non-all-day Calendar events 10–60 minutes away can trigger one briefing per event per day.
-- Completing a task can immediately surface a changed Now focus.
-- Other focus changes use a 30-minute cooldown to avoid repetitive notifications.
+- Completing a task can immediately produce a new briefing when the top Now item changes.
+- Other focus changes use a 30-minute cooldown after the previous briefing.
 - Context Briefing takes precedence over the older GAS ambient summary bubble while visible, avoiding competing desktop messages.
 - Today Work is now available from the pet context menu and menu-bar fallback even when GAS is not linked, so Inbox + local Calendar users can use Work Context.
 
