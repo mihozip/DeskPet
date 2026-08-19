@@ -86,7 +86,7 @@ final class NextActionConfirmationTests: XCTestCase {
         await model.submit()
 
         XCTAssertEqual(updater.calls, [.init(taskId: "T1", nextAction: nil, progress: "明天開始辦公室搬遷作業")])
-        XCTAssertFalse(diary.events.first?.detail.contains("下一步") ?? true)
+        XCTAssertFalse(diary.events.first?.detail?.contains("下一步") ?? false)
     }
 
     @MainActor func testClearingNextActionSendsExplicitEmptyString() async {
@@ -99,6 +99,18 @@ final class NextActionConfirmationTests: XCTestCase {
         await model.submit()
 
         XCTAssertEqual(updater.calls, [.init(taskId: "T1", nextAction: "", progress: nil)])
+    }
+
+    @MainActor func testClearingProgressSendsExplicitEmptyString() async {
+        let updated = GASTaskDigest.Task(taskId: "T1", name: "冷氣工程", status: "進行中", nextAction: "取得報價", progress: "")
+        let updater = FakeTaskUpdater(result: updated)
+        let diary = makeDiary()
+        let model = TaskInteractionViewModel(task: makeTask(), connector: updater, gasConfiguration: GASTaskConfigurationStore(), workEventStore: diary, onUpdated: {})
+        model.choose(.updateProgress)
+        model.note = ""
+        await model.submit()
+
+        XCTAssertEqual(updater.calls, [.init(taskId: "T1", nextAction: nil, progress: "")])
     }
 
     @MainActor func testNoOpUpdateDoesNotCallGateway() async {
