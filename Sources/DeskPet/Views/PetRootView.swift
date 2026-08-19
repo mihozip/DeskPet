@@ -3,6 +3,7 @@ import SwiftUI
 struct PetRootView: View {
     @ObservedObject var model: PetViewModel
     @ObservedObject var ambientMonitor: GASTaskAmbientMonitor
+    @ObservedObject var contextBriefing: WorkContextBriefingService
     @ObservedObject var dailyPreferences: DailyUsePreferencesStore
     @ObservedObject var gasConfiguration: GASTaskConfigurationStore
     @ObservedObject var workEventStore: WorkEventStore
@@ -47,7 +48,13 @@ struct PetRootView: View {
                     .padding(.trailing, 30)
 
                 if model.state == .idle {
-                    if gasConfiguration.isLinked {
+                    if contextBriefing.announcement != nil {
+                        ContextBriefingBubbleView(
+                            briefing: contextBriefing,
+                            onOpenTodayWork: onOpenTaskDigest
+                        )
+                        .padding(.trailing, 30)
+                    } else if gasConfiguration.isLinked {
                         AmbientBriefingBubbleView(monitor: ambientMonitor, gasConfiguration: gasConfiguration)
                             .padding(.trailing, 30)
                     }
@@ -73,9 +80,7 @@ struct PetRootView: View {
 
                         Menu("工作") {
                             Button("開啟 Inbox") { onOpenInbox() }
-                            if gasConfiguration.isLinked {
-                                Button("今日工作") { onOpenTaskDigest() }
-                            }
+                            Button("今日工作") { onOpenTaskDigest() }
                             Button("每日工作日誌…") { onOpenDiary() }
                         }
 
@@ -112,7 +117,7 @@ struct PetRootView: View {
                     }
             }
         }
-        .frame(width: 400, height: 220)
+        .frame(width: 420, height: 250)
         .accessibilityLabel(gasConfiguration.workbenchTitle)
     }
 }
