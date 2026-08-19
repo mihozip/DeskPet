@@ -2,6 +2,30 @@
 
 All notable changes to DeskPet are documented here. Release Candidate interfaces and stored-data formats may still evolve between RC milestones.
 
+## [1.2.1.0] - 2026-08
+
+Release Candidate 1.2.1 — Context Briefing.
+
+### Added
+- Added `WorkContextBriefingService` to surface the existing deterministic Work Context as low-noise desktop recommendations.
+- Added a clickable `白帥帥建議` bubble that opens the full Today Work / Now / Next / Later view.
+- Added a 15-minute local Calendar refresh for contextual briefing and debounced reevaluation when GAS digest, Inbox, WorkEvents, or Snooze state changes.
+- Added `docs/RC1_2_1_CONTEXT_BRIEFING.md` describing trigger policy, persistence, privacy and display precedence.
+
+### Behavior
+- DeskPet briefs the first useful context of the day once.
+- Non-all-day Calendar events 10–60 minutes away can trigger one briefing per event per day.
+- Completing a task can immediately surface a changed Now focus.
+- Other focus changes use a 30-minute cooldown to avoid repetitive notifications.
+- Context Briefing takes precedence over the older GAS ambient summary bubble while visible, avoiding competing desktop messages.
+- Today Work is now available from the pet context menu and menu-bar fallback even when GAS is not linked, so Inbox + local Calendar users can use Work Context.
+
+### Privacy / Safety
+- Context Briefing is read-only and does not perform Calendar, Reminders or GAS writes.
+- Calendar event content remains local to EventKit and is not sent to Gemini.
+- Only delivery-control metadata is persisted in `UserDefaults`: last briefing day/time, last context signature, and last upcoming event ID announced that day.
+- Existing human-confirmation boundaries remain unchanged.
+
 ## [1.2.0.0] - 2026-08
 
 Release Candidate 1.2 — Work Context / Now, Next, Later.
