@@ -9,9 +9,24 @@
 
 DeskPet（白帥帥）是一隻住在 macOS 桌面的工作代理人。它把快速記事、規則或 Gemini 理解、人工確認、Calendar／Reminders／GAS 任務、環境式監測，以及 Work Diary 串成一條可追蹤的工作流。
 
-**目前主線版本：1.2.0.0 — RC1.2 / Work Context**
+**目前主線版本：1.2.1.0 — RC1.2.1 / Context Briefing**
 
 已發佈的安裝包請見 GitHub Releases；`main` 代表目前通過 CI 的最新主線原始碼。
+
+## 1.2.1：白帥帥開始主動提醒工作情境
+
+RC1.2.1 把 1.2 已有的 `Now / Next / Later` 判斷接到桌面白帥帥。使用者不必先打開「今日工作」才能知道目前焦點；在有意義的時機，白帥帥會以低干擾泡泡顯示一則情境建議。
+
+預設會在以下情況提示：
+
+- 每天第一次出現有意義的工作情境。
+- 10–60 分鐘內有即將到來的非全天行程，而且今天尚未提示過該行程。
+- 完成任務後，`Now` 的焦點發生改變。
+- 其他焦點改變需通過 30 分鐘冷卻時間，避免反覆打擾。
+
+點一下「白帥帥建議」泡泡可直接打開完整 `Now / Next / Later`。Context Briefing 不要求 GAS 一定已串接；只有 Inbox 與本機 Calendar 也能產生情境。右鍵選單與 macOS 選單列的「今日工作」也因此改為永遠可用。
+
+完整說明見 [`docs/RC1_2_1_CONTEXT_BRIEFING.md`](docs/RC1_2_1_CONTEXT_BRIEFING.md)。
 
 ## 1.2：從「任務清單」走向「工作情境」
 
@@ -44,6 +59,8 @@ Understand (local rules / optional Gemini)
       ↓
 Work Context (Now / Next / Later)
       ↓
+Context Briefing (low-noise desktop nudge)
+      ↓
 Confirm writes / Display read-only results
       ↓
 Calendar / Reminders / GAS Task
@@ -56,6 +73,7 @@ Work Diary
 ## 主要功能
 
 - 桌面白帥帥：可拖曳、調整大小與動畫強度；一般 App 視窗可以自然蓋住桌寵。
+- Context Briefing：在每日首次情境、近期行程、完成工作後焦點改變等關鍵時機主動提示。
 - macOS 選單列腳印入口：桌寵互動異常時仍可操作主要功能。
 - 全域快捷鍵快速記事：原始內容保存在本機 Inbox。
 - Smart Inbox：先用本機規則解析，可選擇使用 Gemini API 協助理解。
@@ -78,8 +96,9 @@ Work Diary
 
 DeskPet 對「讀取、建議、寫入」保持明確分層：
 
-- Calendar Intelligence 與 Work Context 是唯讀能力。
+- Calendar Intelligence、Work Context 與 Context Briefing 都是唯讀能力。
 - Calendar 事件內容不送 Gemini。
+- Context Briefing 只把最後提示日期、時間、焦點 signature 與已提示行程 ID 存在本機 `UserDefaults`，不新增工作資料庫。
 - Calendar / Reminders / GAS 的正式寫入都必須經過人工確認。
 - Gemini API Key 只存放在 macOS Keychain。
 - GAS token 只存放在 Keychain；非秘密整合 metadata 才進 `UserDefaults`。
@@ -161,6 +180,7 @@ CI 會驗證 public repository contract、GAS Gateway、Apple 權限、Gemini mo
 
 ## 文件索引
 
+- [`docs/RC1_2_1_CONTEXT_BRIEFING.md`](docs/RC1_2_1_CONTEXT_BRIEFING.md) — RC1.2.1 Context Briefing
 - [`docs/RC1_2_WORK_CONTEXT.md`](docs/RC1_2_WORK_CONTEXT.md) — RC1.2 Work Context
 - [`docs/RC1_DAILY_WORK_LOOP.md`](docs/RC1_DAILY_WORK_LOOP.md) — Daily Work Loop
 - [`docs/RC1_1_CALENDAR_INTELLIGENCE.md`](docs/RC1_1_CALENDAR_INTELLIGENCE.md) — Calendar Intelligence

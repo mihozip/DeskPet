@@ -13,10 +13,12 @@ on:
       - tests/update_progress_contract.test.sh
       - tests/rc1_1_2_contract.test.sh
       - tests/rc1_1_3_polish_contract.test.sh
+      - tests/rc1_2_1_context_briefing_contract.test.sh
       - tests/apple_permission_contract.test.sh
       - tests/gemini_model_contract.test.sh
       - docs/RC1_1_1_DESKTOP_INTERACTION.md
       - docs/RC1_2_WORK_CONTEXT.md
+      - docs/RC1_2_1_CONTEXT_BRIEFING.md
       - script/build_and_run.sh
       - script/build_release.sh
       - script/install_or_update.sh
@@ -49,6 +51,9 @@ jobs:
           NOTES_PATH="$RUNNER_TEMP/release-notes.md"
 
           case "$VERSION" in
+            1.2.1.0)
+              RELEASE_TITLE="DeskPet RC1.2.1 — Context Briefing"
+              ;;
             1.2.0.0)
               RELEASE_TITLE="DeskPet RC1.2 — Work Context"
               ;;
@@ -136,6 +141,10 @@ jobs:
         if: env.SHOULD_PUBLISH == 'true'
         run: bash tests/rc1_1_3_polish_contract.test.sh
 
+      - name: Validate RC1.2.1 Context Briefing contract
+        if: env.SHOULD_PUBLISH == 'true'
+        run: bash tests/rc1_2_1_context_briefing_contract.test.sh
+
       - name: Validate Apple permission and signing contract
         if: env.SHOULD_PUBLISH == 'true'
         run: bash tests/apple_permission_contract.test.sh
@@ -160,7 +169,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "$VERSION" == "1.1.1.0" && -s docs/RC1_1_1_DESKTOP_INTERACTION.md ]]; then
+          if [[ "$VERSION" == "1.2.1.0" && -s docs/RC1_2_1_CONTEXT_BRIEFING.md ]]; then
+            cat docs/RC1_2_1_CONTEXT_BRIEFING.md > "$NOTES_PATH"
+          elif [[ "$VERSION" == "1.1.1.0" && -s docs/RC1_1_1_DESKTOP_INTERACTION.md ]]; then
             cat docs/RC1_1_1_DESKTOP_INTERACTION.md > "$NOTES_PATH"
           else
             awk -v version="$VERSION" '
@@ -187,6 +198,7 @@ jobs:
             echo
             echo "- GitHub Actions release workflow: PASS"
             echo "- Swift tests, including RC1.2 Work Context tests: PASS"
+            echo "- RC1.2.1 Context Briefing contract: PASS"
             echo "- Desktop interaction contract: PASS"
             echo "- Updater hand-off contract: PASS"
             echo "- RC1.1.2 permission/menu contract: PASS"

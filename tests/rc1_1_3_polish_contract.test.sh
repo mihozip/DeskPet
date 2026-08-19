@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Release contract for RC1.1.3 desktop-polish behavior.
+# Release contract for RC1.1.3 desktop-polish behavior, with the RC1.2.1
+# clarification that read-only Today Work / Work Context remains available
+# without GAS while GAS-specific mutation/sync affordances stay gated.
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 UPDATE_SERVICE="$ROOT_DIR/Sources/DeskPet/Services/SoftwareUpdateService.swift"
 APP_DELEGATE="$ROOT_DIR/Sources/DeskPet/App/AppDelegate.swift"
@@ -19,8 +21,15 @@ grep -qF 'alert.addButton(withTitle: "立即更新")' "$APP_DELEGATE"
 
 grep -qF 'var isLinked: Bool' "$GAS_CONFIG"
 grep -qF 'canUseConnector && integrationMetadata != nil' "$GAS_CONFIG"
+
+# Read-only Today Work is now a DeskPet capability, not a GAS-only menu.
+grep -qF 'Button("今日工作") { onOpenTaskDigest() }' "$PET_ROOT"
+grep -qF 'workMenu.addItem(makeItem(title: "今日工作", action: #selector(openTaskDigest)))' "$STATUS_MENU"
+
+# GAS-specific actions remain behind the verified isLinked boundary.
 grep -qF 'if gasConfiguration.isLinked {' "$PET_ROOT"
-grep -qF 'guard gasConfiguration.isLinked else { return }' "$STATUS_MENU"
+grep -qF 'Button("自然語句操作…")' "$PET_ROOT"
+grep -qF 'Button("立即同步校務任務系統")' "$PET_ROOT"
 
 grep -qF 'panel.level = .normal' "$PET_PANEL"
 grep -qF 'panel.isFloatingPanel = false' "$PET_PANEL"

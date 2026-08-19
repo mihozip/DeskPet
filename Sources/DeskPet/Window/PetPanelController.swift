@@ -15,6 +15,7 @@ final class PetPanelController: NSWindowController {
     init(
         store: CaptureStore,
         ambientMonitor: GASTaskAmbientMonitor,
+        contextBriefing: WorkContextBriefingService,
         dailyPreferences: DailyUsePreferencesStore,
         gasConfiguration: GASTaskConfigurationStore,
         workEventStore: WorkEventStore,
@@ -33,14 +34,12 @@ final class PetPanelController: NSWindowController {
         self.model = model
 
         let panel = PetPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 220),
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 250),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
 
-        // Keep DeskPet visible on the desktop without forcing it above ordinary
-        // application windows. Explicit capture actions can still bring it forward.
         panel.level = .normal
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isOpaque = false
@@ -67,6 +66,7 @@ final class PetPanelController: NSWindowController {
         let rootView = PetRootView(
             model: model,
             ambientMonitor: ambientMonitor,
+            contextBriefing: contextBriefing,
             dailyPreferences: dailyPreferences,
             gasConfiguration: gasConfiguration,
             workEventStore: workEventStore,

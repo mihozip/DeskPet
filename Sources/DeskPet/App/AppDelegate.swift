@@ -14,6 +14,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let softwareUpdate = SoftwareUpdateService()
     private lazy var gasConnector = GASTaskConnector(configuration: gasConfiguration)
     private lazy var ambientMonitor = GASTaskAmbientMonitor(configuration: gasConfiguration, connector: gasConnector)
+    private lazy var contextBriefing = WorkContextBriefingService(
+        monitor: ambientMonitor,
+        captureStore: store,
+        workEventStore: workEventStore,
+        snoozeStore: snoozeStore,
+        calendarQueryService: calendarQueryService
+    )
     private var panelController: PetPanelController?
     private var inboxWindowController: InboxWindowController?
     private var settingsWindowController: SettingsWindowController?
@@ -163,6 +170,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let panelController = PetPanelController(
             store: store,
             ambientMonitor: ambientMonitor,
+            contextBriefing: contextBriefing,
             dailyPreferences: dailyPreferences,
             gasConfiguration: gasConfiguration,
             workEventStore: workEventStore,
@@ -190,6 +198,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
 
         ambientMonitor.start()
+        contextBriefing.start()
         softwareUpdate.startAutomaticChecking()
 
         let registered = hotKeyService.register { [weak panelController] in panelController?.showCapture() }
@@ -210,6 +219,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         panelController?.persistCurrentPosition()
+        contextBriefing.stop()
         ambientMonitor.stop()
         softwareUpdate.stopAutomaticChecking()
         hotKeyService?.unregister()

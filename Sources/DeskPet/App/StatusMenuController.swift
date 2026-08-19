@@ -49,9 +49,7 @@ final class StatusMenuController: NSObject {
         let workItem = NSMenuItem(title: "工作", action: nil, keyEquivalent: "")
         let workMenu = NSMenu(title: "工作")
         workMenu.addItem(makeItem(title: "開啟 Inbox", action: #selector(openInbox)))
-        if gasConfiguration.isLinked {
-            workMenu.addItem(makeItem(title: "今日工作", action: #selector(openTaskDigest)))
-        }
+        workMenu.addItem(makeItem(title: "今日工作", action: #selector(openTaskDigest)))
         workItem.submenu = workMenu
         menu.addItem(workItem)
 
@@ -87,7 +85,6 @@ final class StatusMenuController: NSObject {
     }
 
     @objc private func openTaskDigest() {
-        guard gasConfiguration.isLinked else { return }
         onOpenTaskDigest()
     }
 

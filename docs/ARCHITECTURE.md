@@ -1,6 +1,6 @@
 # DeskPet Architecture
 
-This document describes the DeskPet `1.2.0.0` RC1.2 architecture.
+This document describes the DeskPet `1.2.1.0` RC1.2.1 architecture.
 
 ## Conceptual flow
 
@@ -12,6 +12,8 @@ Inbox / Calendar / GAS / WorkEvents
 Interpret + Work Context
         ↓
 Prioritize / Recommend
+        ↓
+Context Briefing (low-noise delivery)
         ↓
 Confirm writes / Display read-only results
         ↓
@@ -88,6 +90,26 @@ Calendar read failure is non-fatal. The engine falls back to GAS tasks, Inbox, W
 
 See [`RC1_2_WORK_CONTEXT.md`](RC1_2_WORK_CONTEXT.md) for the detailed RC1.2 contract.
 
+## RC1.2.1 Context Briefing
+
+`WorkContextBriefingService` is the delivery layer above `WorkContextEngine`. It owns no new work source of truth. Instead, it observes GAS digest, Inbox, WorkEvents and Snooze changes, refreshes local Calendar context every 15 minutes, regenerates the current `WorkContextSnapshot`, and decides whether that change is important enough to surface on the desktop.
+
+The low-noise trigger policy is deterministic:
+
+1. First useful context of a local calendar day may produce one briefing.
+2. A non-all-day event 10–60 minutes away may produce one briefing for that event that day.
+3. A task completion may immediately surface a changed Now focus.
+4. Other focus changes require a 30-minute cooldown.
+5. Manual refresh may explicitly show the current headline again.
+
+The service persists only delivery-control metadata in `UserDefaults`: last briefing day/time, last announced context signature, and last upcoming event ID announced that day. It does not persist Calendar event bodies, task copies, or Work Context snapshots.
+
+`ContextBriefingBubbleView` presents the recommendation beside the desktop pet. While visible, it takes precedence over the older GAS ambient summary bubble to avoid competing messages. Clicking it opens Today Work / Now / Next / Later.
+
+Because Context Briefing can derive context from Inbox and local Calendar alone, Today Work is available even when the optional GAS integration is not linked.
+
+See [`RC1_2_1_CONTEXT_BRIEFING.md`](RC1_2_1_CONTEXT_BRIEFING.md) for the delivery contract.
+
 ## State ownership
 
 - Models: value types and identifiers.
@@ -102,13 +124,13 @@ See [`RC1_2_WORK_CONTEXT.md`](RC1_2_WORK_CONTEXT.md) for the detailed RC1.2 cont
 
 Optional. The API key is read from Keychain only at request time. AI interpretation does not itself authorize writes.
 
-Gemini is used for selected interpretation / structured-output workflows, not for Work Context prioritization or Calendar event analysis. Model IDs are restricted to verified first-party Gemini API identifiers; see [`GEMINI_MODELS.md`](GEMINI_MODELS.md).
+Gemini is used for selected interpretation / structured-output workflows, not for Work Context prioritization, Context Briefing, or Calendar event analysis. Model IDs are restricted to verified first-party Gemini API identifiers; see [`GEMINI_MODELS.md`](GEMINI_MODELS.md).
 
 ### EventKit
 
 Settings is the single authorization entry point. Calendar and Reminders remain separate permission paths.
 
-Read-only Calendar Intelligence and Work Context use EventKit reads. Calendar and Reminders write operations continue through `CalendarActionService` after explicit confirmation.
+Read-only Calendar Intelligence, Work Context and Context Briefing use EventKit reads. Calendar and Reminders write operations continue through `CalendarActionService` after explicit confirmation.
 
 ### GAS
 
@@ -143,6 +165,6 @@ UserDefaults
 macOS Keychain
 ```
 
-Snooze stores only task IDs and expiration dates locally. Work Context adds no new persistent source-of-truth store.
+Snooze stores only task IDs and expiration dates locally. Work Context adds no new persistent source-of-truth store. Context Briefing adds only local delivery-control metadata in `UserDefaults`.
 
 Stored models should remain backward-decodable when possible. Any incompatible change should include a migration note in the changelog.
