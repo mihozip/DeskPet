@@ -9,9 +9,24 @@
 
 DeskPet is a macOS desktop work agent built with Swift, SwiftUI and AppKit. It connects quick capture, optional Gemini interpretation, human-confirmed Calendar / Reminders / Google Apps Script actions, ambient monitoring, and a local Work Diary.
 
-**Current mainline version: 1.2.0.0 — RC1.2 / Work Context**
+**Current mainline version: 1.2.1.0 — RC1.2.1 / Context Briefing**
 
 Published install packages are available from GitHub Releases. `main` is the latest CI-validated source line.
+
+## RC1.2.1: Context Briefing
+
+RC1.2.1 connects the existing RC1.2 Work Context to the desktop pet. Users no longer need to open Today Work first to discover the current focus. DeskPet can show one low-noise `白帥帥建議` bubble when the context changes enough to matter.
+
+Default triggers:
+
+- first useful context of the day;
+- one briefing for a non-all-day Calendar event 10–60 minutes away;
+- immediate next-focus briefing after a completed task changes Now;
+- other focus changes only after a 30-minute cooldown.
+
+Clicking the bubble opens the full Today Work / Now / Next / Later surface. Context Briefing does not require GAS to be linked: Inbox and local Calendar can provide context by themselves. Today Work is therefore always available from both the pet menu and the macOS menu-bar fallback.
+
+See [`docs/RC1_2_1_CONTEXT_BRIEFING.md`](docs/RC1_2_1_CONTEXT_BRIEFING.md).
 
 ## RC1.2: Work Context
 
@@ -36,6 +51,7 @@ See [`docs/RC1_2_WORK_CONTEXT.md`](docs/RC1_2_WORK_CONTEXT.md) for the design an
 ## Core features
 
 - Desktop pet with drag, size and animation controls.
+- Low-noise Context Briefing tied to the deterministic Work Context.
 - Menu-bar fallback entry point.
 - Global quick capture into a local Inbox.
 - Smart Inbox with local parsing and optional Gemini interpretation.
@@ -54,8 +70,9 @@ See [`docs/RC1_2_WORK_CONTEXT.md`](docs/RC1_2_WORK_CONTEXT.md) for the design an
 
 DeskPet keeps read, recommendation and mutation boundaries separate:
 
-- Calendar Intelligence and Work Context are read-only.
+- Calendar Intelligence, Work Context and Context Briefing are read-only.
 - Calendar event content is not sent to Gemini.
+- Context Briefing persists only delivery-control metadata in local `UserDefaults`.
 - Calendar / Reminders / GAS writes require explicit human confirmation.
 - Gemini API keys and GAS tokens are stored in macOS Keychain.
 - Work Context creates no additional persistent task or calendar database.
