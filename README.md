@@ -9,9 +9,21 @@
 
 DeskPet（白帥帥）是一隻住在 macOS 桌面的工作代理人。它把快速記事、規則或 Gemini 理解、人工確認、Calendar／Reminders／GAS 任務、環境式監測，以及 Work Diary 串成一條可追蹤的工作流。
 
-**目前主線版本：1.2.1.0 — RC1.2.1 / Context Briefing**
+**目前主線版本：1.2.1.1 — RC1.2.1.1 / Task Mutation Hotfix**
 
 已發佈的安裝包請見 GitHub Releases；`main` 代表目前通過 CI 的最新主線原始碼。
+
+## 1.2.1.1：任務寫入只送真正改動的欄位
+
+RC1.2.1.1 修正任務確認畫面的寫入一致性。現在預覽沒有顯示變更的欄位，就不會被送到 GAS Gateway；例如只更新「最近進度」時，不會再順便重送原本未修改的 `nextAction`。
+
+- `nil` 代表不更新該欄位。
+- 空字串代表使用者明確要清除該欄位。
+- 「最近進度」與「下一步行動」的清除操作都會在變更預覽中顯示。
+- 完全沒有差異時，不呼叫 Gateway。
+- 若使用者真的修改 `nextAction`，但部署中的 GAS Gateway 太舊而不支援，DeskPet 會明確提示需要更新並重新部署 Gateway。
+
+這個 hotfix 不改變既有人工確認邊界，也不改動 Dashboard schema。
 
 ## 1.2.1：白帥帥開始主動提醒工作情境
 
