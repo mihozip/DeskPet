@@ -10,16 +10,29 @@ const source = fs.readFileSync(
   'utf8',
 );
 
+const scriptProperties = new Map([
+  ['DESKPET_API_TOKEN', 'secret-token'],
+]);
+let uuidCounter = 0;
+
 const context = vm.createContext({
   console,
   PropertiesService: {
-    getScriptProperties: () => ({ getProperty: (key) => key === 'DESKPET_API_TOKEN' ? 'secret-token' : '' }),
+    getScriptProperties: () => ({
+      getProperty: (key) => scriptProperties.get(key) || '',
+      setProperty: (key, value) => scriptProperties.set(key, String(value)),
+      deleteProperty: (key) => scriptProperties.delete(key),
+    }),
   },
   SpreadsheetApp: {},
   Utilities: {
     DigestAlgorithm: { SHA_256: 'SHA_256' },
     Charset: { UTF_8: 'UTF_8' },
     computeDigest: (_algorithm, value) => Array.from(crypto.createHash('sha256').update(String(value)).digest()),
+    getUuid: () => {
+      uuidCounter += 1;
+      return `00000000-0000-4000-8000-${String(uuidCounter).padStart(12, '0')}`;
+    },
   },
 });
 vm.runInContext(source, context);
@@ -100,8 +113,39 @@ assert.throws(
 
 assert.match(source, /allowedKeys = \['status', 'dueDate', 'dueTime', 'nextAction', 'waitingFor', 'progress'\]/);
 assert.match(source, /headerMap\['下一步行動'\]/);
+assert.match(source, /function createDeskPetApiToken\(\)/);
+assert.match(source, /function resetDeskPetApiToken\(\)/);
+
 assert.throws(() => context.verifyToken_('wrong-token'), /Token 無效/);
 assert.doesNotThrow(() => context.verifyToken_('secret-token'));
+
+const existingToken = context.createDeskPetApiToken();
+assert.equal(existingToken.token, 'secret-token');
+assert.equal(existingToken.tokenCreated, false);
+assert.equal(scriptProperties.get('DESKPET_API_TOKEN'), 'secret-token');
+
+scriptProperties.delete('DESKPET_API_TOKEN');
+const createdToken = context.createDeskPetApiToken();
+assert.equal(createdToken.ok, true);
+assert.equal(createdToken.tokenCreated, true);
+assert.equal(createdToken.tokenConfigured, true);
+assert.equal(createdToken.token.length, 64);
+assert.equal(scriptProperties.get('DESKPET_API_TOKEN'), createdToken.token);
+
+const reusedToken = context.createDeskPetApiToken();
+assert.equal(reusedToken.tokenCreated, false);
+assert.equal(reusedToken.token, createdToken.token);
+
+const rotatedToken = context.resetDeskPetApiToken();
+assert.equal(rotatedToken.ok, true);
+assert.equal(rotatedToken.tokenRotated, true);
+assert.notEqual(rotatedToken.token, createdToken.token);
+assert.equal(scriptProperties.get('DESKPET_API_TOKEN'), rotatedToken.token);
+
+const status = context.getDeskPetGatewayStatus();
+assert.equal(status.tokenConfigured, true);
+assert.equal(Object.prototype.hasOwnProperty.call(status, 'token'), false);
+
 assert.equal(
   context.createDeskPetTaskId_('12345678-1234-1234-1234-123456789012'),
   context.createDeskPetTaskId_('12345678-1234-1234-1234-123456789012'),
