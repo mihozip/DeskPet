@@ -149,28 +149,62 @@ function configureDeskPetGateway(spreadsheetId) {
 function initializeDeskPetGateway() {
   const ss = openSpreadsheet_();
   const integration = validateDashboardContract_(ss);
+  const tokenState = createDeskPetApiToken();
 
+  return {
+    ok: true,
+    spreadsheetConfigured: true,
+    tokenConfigured: tokenState.tokenConfigured,
+    tokenCreated: tokenState.tokenCreated,
+    apiVersion: GATEWAY_CONFIG.API_VERSION,
+    integration,
+  };
+}
+
+/**
+ * 建立或取得目前的 DeskPet API Token。
+ * - 第一次執行：建立 DESKPET_API_TOKEN。
+ * - 已存在 Token：保留原值，不旋轉，避免重新部署後既有 DeskPet 失效。
+ * - 此函數只供 Apps Script 編輯器手動執行，不會透過 doGet/doPost 對外暴露。
+ *
+ * 執行後可直接從回傳結果取得 token，也可在
+ * Project Settings → Script Properties → DESKPET_API_TOKEN 複製。
+ */
+function createDeskPetApiToken() {
   const props = PropertiesService.getScriptProperties();
   let token = String(props.getProperty('DESKPET_API_TOKEN') || '').trim();
-  if (!token) {
+  const tokenCreated = !token;
+
+  if (tokenCreated) {
     token = generateToken_();
     props.setProperty('DESKPET_API_TOKEN', token);
   }
 
   return {
     ok: true,
-    spreadsheetConfigured: true,
+    token,
     tokenConfigured: Boolean(token),
-    apiVersion: GATEWAY_CONFIG.API_VERSION,
-    integration,
+    tokenCreated,
+    message: tokenCreated
+      ? '已建立 DeskPet API Token。請將此 Token 貼到白帥帥設定。'
+      : 'DeskPet API Token 已存在，沿用原 Token；重新部署不需要換 Token。',
   };
 }
 
-/** 重新產生 Token；舊 Token 立即失效。新值請從 Project Settings → Script Properties 複製。 */
+/**
+ * 強制重新產生 Token；舊 Token 立即失效。
+ * 只有需要輪替憑證或現有 Token 已外洩／遺失時才使用。
+ */
 function resetDeskPetApiToken() {
   const token = generateToken_();
   PropertiesService.getScriptProperties().setProperty('DESKPET_API_TOKEN', token);
-  return { ok: true, tokenRotated: true };
+  return {
+    ok: true,
+    token,
+    tokenConfigured: true,
+    tokenRotated: true,
+    message: '已重新產生 DeskPet API Token；舊 Token 已失效。請同步更新白帥帥設定。',
+  };
 }
 
 /** 回傳 Gateway 設定狀態，不輸出秘密值。 */
