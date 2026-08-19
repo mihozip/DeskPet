@@ -17,6 +17,7 @@ on:
       - tests/gemini_model_contract.test.sh
       - docs/RC1_1_1_DESKTOP_INTERACTION.md
       - docs/RC1_2_WORK_CONTEXT.md
+      - docs/RC1_2_1_CONTEXT_BRIEFING.md
       - script/build_and_run.sh
       - script/build_release.sh
       - script/install_or_update.sh
@@ -49,6 +50,9 @@ jobs:
           NOTES_PATH="$RUNNER_TEMP/release-notes.md"
 
           case "$VERSION" in
+            1.2.1.0)
+              RELEASE_TITLE="DeskPet RC1.2.1 — Context Briefing"
+              ;;
             1.2.0.0)
               RELEASE_TITLE="DeskPet RC1.2 — Work Context"
               ;;
@@ -160,7 +164,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "$VERSION" == "1.1.1.0" && -s docs/RC1_1_1_DESKTOP_INTERACTION.md ]]; then
+          if [[ "$VERSION" == "1.2.1.0" && -s docs/RC1_2_1_CONTEXT_BRIEFING.md ]]; then
+            cat docs/RC1_2_1_CONTEXT_BRIEFING.md > "$NOTES_PATH"
+          elif [[ "$VERSION" == "1.1.1.0" && -s docs/RC1_1_1_DESKTOP_INTERACTION.md ]]; then
             cat docs/RC1_1_1_DESKTOP_INTERACTION.md > "$NOTES_PATH"
           else
             awk -v version="$VERSION" '
