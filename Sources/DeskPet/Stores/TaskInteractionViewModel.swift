@@ -216,6 +216,14 @@ final class TaskInteractionViewModel: ObservableObject {
     func submit() async {
         guard let preview else { return }
         guard !isSubmitting else { return }
+
+        let mutation = mutationValues(for: preview)
+        guard mutation.hasChanges else {
+            didSucceed = false
+            statusMessage = "沒有需要寫入的變更。"
+            return
+        }
+
         isSubmitting = true
         didSucceed = false
         statusMessage = "正在寫入校務任務系統…"
@@ -224,12 +232,12 @@ final class TaskInteractionViewModel: ObservableObject {
         do {
             let updated = try await connector.updateTask(
                 taskId: task.taskId,
-                status: preview.statusAfter,
-                dueDate: preview.dueDateAfter,
-                dueTime: preview.dueTimeAfter,
-                nextAction: preview.nextActionAfter,
-                waitingFor: preview.waitingForAfter,
-                progress: preview.progressAfter?.isEmpty == false ? preview.progressAfter : nil,
+                status: mutation.status,
+                dueDate: mutation.dueDate,
+                dueTime: mutation.dueTime,
+                nextAction: mutation.nextAction,
+                waitingFor: mutation.waitingFor,
+                progress: mutation.progress,
                 reason: preview.action.title
             )
             task = updated
@@ -238,8 +246,45 @@ final class TaskInteractionViewModel: ObservableObject {
             statusMessage = "已更新「\(updated.name)」。"
             await onUpdated()
         } catch {
-            statusMessage = "更新失敗：\(error.localizedDescription)"
+            statusMessage = "更新失敗：\(friendlyUpdateError(error))"
         }
+    }
+
+    private struct MutationValues {
+        let status: String?
+        let dueDate: String?
+        let dueTime: String?
+        let nextAction: String?
+        let waitingFor: String?
+        let progress: String?
+
+        var hasChanges: Bool {
+            status != nil || dueDate != nil || dueTime != nil || nextAction != nil || waitingFor != nil || progress != nil
+        }
+    }
+
+    private func mutationValues(for preview: GASTaskMutationPreview) -> MutationValues {
+        MutationValues(
+            status: changedValue(after: preview.statusAfter, before: preview.statusBefore),
+            dueDate: changedValue(after: preview.dueDateAfter, before: preview.dueDateBefore),
+            dueTime: changedValue(after: preview.dueTimeAfter, before: preview.dueTimeBefore),
+            nextAction: changedValue(after: preview.nextActionAfter, before: preview.nextActionBefore),
+            waitingFor: changedValue(after: preview.waitingForAfter, before: preview.waitingForBefore),
+            progress: changedValue(after: preview.progressAfter, before: preview.progressBefore)
+        )
+    }
+
+    private func changedValue(after: String?, before: String) -> String? {
+        guard let after else { return nil }
+        return after == before ? nil : after
+    }
+
+    private func friendlyUpdateError(_ error: Error) -> String {
+        let message = error.localizedDescription
+        if message.contains("不允許更新欄位") && message.contains("nextAction") {
+            return "校務任務 Gateway 版本過舊，尚不支援「下一步行動」。請更新 GAS/DeskPet_GAS_API_Gateway_v3.js 並重新部署 Web App。"
+        }
+        return message
     }
 
     private func recordWorkEvent(for updated: GASTaskDigest.Task, preview: GASTaskMutationPreview) {
@@ -260,7 +305,12 @@ final class TaskInteractionViewModel: ObservableObject {
             detail = deadline.isEmpty ? (preview.progressAfter ?? "調整截止時間") : "延期至 \(deadline)"
         case .updateProgress:
             kind = .taskUpdated
-            let next = preview.nextActionAfter?.isEmpty == false ? "；下一步：\(preview.nextActionAfter!)" : ""
+            let next: String
+            if let after = preview.nextActionAfter, after != preview.nextActionBefore {
+                next = after.isEmpty ? "；下一步：已清除" : "；下一步：\(after)"
+            } else {
+                next = ""
+            }
             detail = (preview.progressAfter ?? "更新進度") + next
         case .followUp:
             kind = .taskUpdated
