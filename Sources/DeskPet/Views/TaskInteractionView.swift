@@ -133,8 +133,8 @@ struct TaskInteractionView: View {
             if let after = preview.waitingForAfter, after != preview.waitingForBefore {
                 ChangeRow(label: "等待對象", before: preview.waitingForBefore, after: after.isEmpty ? "清除" : after)
             }
-            if let after = preview.progressAfter, !after.isEmpty, after != preview.progressBefore {
-                ChangeRow(label: "最近進度", before: preview.progressBefore, after: after)
+            if let after = preview.progressAfter, after != preview.progressBefore {
+                ChangeRow(label: "最近進度", before: preview.progressBefore, after: after.isEmpty ? "清除" : after)
             }
             if let after = preview.nextActionAfter, after != preview.nextActionBefore {
                 ChangeRow(label: "下一步行動", before: preview.nextActionBefore, after: after.isEmpty ? "清除" : after)
