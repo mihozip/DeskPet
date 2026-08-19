@@ -2,6 +2,8 @@
 
 RC1.2.1 makes the RC1.2 Work Context visible without requiring the user to open Today Work first. The new `WorkContextBriefingService` evaluates the same deterministic `WorkContextEngine` snapshot and surfaces one low-noise desktop recommendation when the context changes enough to matter.
 
+**Release target:** `v1.2.1.0` / `DeskPet-1.2.1.0.zip`.
+
 ## User experience
 
 A desktop bubble titled `白帥帥建議` may appear beside the pet. The bubble contains the same deterministic context headline used by Today Work, for example:
