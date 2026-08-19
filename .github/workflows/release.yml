@@ -51,6 +51,9 @@ jobs:
           NOTES_PATH="$RUNNER_TEMP/release-notes.md"
 
           case "$VERSION" in
+            1.2.1.1)
+              RELEASE_TITLE="DeskPet RC1.2.1.1 — Task Mutation Hotfix"
+              ;;
             1.2.1.0)
               RELEASE_TITLE="DeskPet RC1.2.1 — Context Briefing"
               ;;
@@ -197,7 +200,7 @@ jobs:
             echo "## Release validation"
             echo
             echo "- GitHub Actions release workflow: PASS"
-            echo "- Swift tests, including RC1.2 Work Context tests: PASS"
+            echo "- Swift tests, including task-mutation regression tests: PASS"
             echo "- RC1.2.1 Context Briefing contract: PASS"
             echo "- Desktop interaction contract: PASS"
             echo "- Updater hand-off contract: PASS"
