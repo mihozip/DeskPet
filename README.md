@@ -143,7 +143,7 @@ Gemini 2.x 已移除。2026-08-18 再次核對 Google 第一方 Gemini API 文�
 - macOS 13 或更新版本
 - Swift 5.9+ / Apple Command Line Tools 或 Xcode
 - Gemini 為選用整合，需要自行提供 Gemini API Key
-- GAS 為選用整合，需要自行部署 `GAS/DeskPet_GAS_API_Gateway_v3.js`
+- GAS 為選用整合；推薦使用 `school-admin-daily-dashboard` 內建的 `DeskPetGateway.gs` 建立 DeskPet API deployment，`GAS/DeskPet_GAS_API_Gateway_v3.js` 保留作為獨立 Gateway 備援
 
 ## 快速開始
 
@@ -171,7 +171,9 @@ cd DeskPet
 
 ## GAS / Dashboard 整合
 
-Gateway 是 `mihozip/school-admin-daily-dashboard` 的非破壞性 companion API。它驗證既有 Dashboard schema，不自行建立、遷移或改寫工作表。
+Gateway 是 `mihozip/school-admin-daily-dashboard` 的非破壞性 companion API。新版推薦把 `DeskPetGateway.gs` 與 Dashboard 放在同一個 Apps Script 專案，再建立第二個專供 DeskPet 直接 POST 的 Web App deployment；管理台 deployment 仍維持 Workspace／網域限制。
+
+因此 DeskPet 不再需要手動複製 `DESKPET_SPREADSHEET_ID`。設定時只需填入 **DeskPet API deployment 的 `/exec` URL** 與 `DESKPET_API_TOKEN`。舊版獨立 Gateway 仍可在 Workspace 政策受限時使用。
 
 - Gateway 設定：[`docs/GAS_GATEWAY_SETUP.md`](docs/GAS_GATEWAY_SETUP.md)
 - Dashboard 整合：[`docs/GAS_PROJECT_INTEGRATION.md`](docs/GAS_PROJECT_INTEGRATION.md)
