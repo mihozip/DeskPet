@@ -208,7 +208,8 @@ function initializeDeskPetGateway() {
  * - 已存在 Token：保留原值，不旋轉，避免重新部署後既有 DeskPet 失效。
  * - 此函數只供 Apps Script 編輯器手動執行，不會透過 doGet/doPost 對外暴露。
  *
- * 執行後可在 Project Settings → Script Properties → DESKPET_API_TOKEN 複製。
+ * 執行後會直接在「執行記錄」顯示 Token，也可在
+ * Project Settings → Script Properties → DESKPET_API_TOKEN 複製。
  */
 function createDeskPetApiToken() {
   const props = PropertiesService.getScriptProperties();
@@ -221,8 +222,9 @@ function createDeskPetApiToken() {
   }
 
   console.info(tokenCreated
-    ? 'DeskPet API Token 已建立，請到 Project Settings → Script Properties 複製 DESKPET_API_TOKEN。'
+    ? 'DeskPet API Token 已建立。'
     : 'DeskPet API Token 已存在，沿用原 Token。');
+  console.info('DESKPET_API_TOKEN = ' + token);
 
   return {
     ok: true,
@@ -230,8 +232,39 @@ function createDeskPetApiToken() {
     tokenConfigured: Boolean(token),
     tokenCreated,
     message: tokenCreated
-      ? '已建立 DeskPet API Token。請將此 Token 貼到白帥帥設定。'
-      : 'DeskPet API Token 已存在，沿用原 Token；重新部署不需要換 Token。',
+      ? '已建立 DeskPet API Token，Token 已顯示於執行記錄。'
+      : 'DeskPet API Token 已存在並沿用，Token 已顯示於執行記錄。',
+  };
+}
+
+/**
+ * 顯示目前 Token；若 Script Properties 中沒有 Token，則立即建立一組。
+ * 只供 Apps Script 編輯器手動執行，不透過 Web API 對外暴露。
+ */
+function showDeskPetApiToken() {
+  const props = PropertiesService.getScriptProperties();
+  let token = String(props.getProperty('DESKPET_API_TOKEN') || '').trim();
+  let tokenCreated = false;
+
+  if (!token) {
+    token = generateToken_();
+    props.setProperty('DESKPET_API_TOKEN', token);
+    tokenCreated = true;
+    console.info('找不到 DESKPET_API_TOKEN，已自動建立新的 Token。');
+  } else {
+    console.info('已找到目前的 DeskPet API Token。');
+  }
+
+  console.info('DESKPET_API_TOKEN = ' + token);
+
+  return {
+    ok: true,
+    token,
+    tokenConfigured: true,
+    tokenCreated,
+    message: tokenCreated
+      ? '原本沒有 Token，已建立並顯示於執行記錄。'
+      : '目前 Token 已顯示於執行記錄。',
   };
 }
 
@@ -242,12 +275,14 @@ function createDeskPetApiToken() {
 function resetDeskPetApiToken() {
   const token = generateToken_();
   PropertiesService.getScriptProperties().setProperty('DESKPET_API_TOKEN', token);
+  console.info('DeskPet API Token 已重新產生；舊 Token 已失效。');
+  console.info('DESKPET_API_TOKEN = ' + token);
   return {
     ok: true,
     token,
     tokenConfigured: true,
     tokenRotated: true,
-    message: '已重新產生 DeskPet API Token；舊 Token 已失效。請同步更新白帥帥設定。',
+    message: '已重新產生 DeskPet API Token；Token 已顯示於執行記錄，請同步更新白帥帥設定。',
   };
 }
 
