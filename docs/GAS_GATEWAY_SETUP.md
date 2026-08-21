@@ -1,86 +1,225 @@
 # Google Apps Script Gateway Setup
 
-DeskPet Gateway 是 [`school-admin-daily-dashboard`](https://github.com/mihozip/school-admin-daily-dashboard) 的獨立機器 API。請先完成 Dashboard 安裝，再把 Gateway 指向同一份 Spreadsheet。
+DeskPet 與 [`school-admin-daily-dashboard`](https://github.com/mihozip/school-admin-daily-dashboard) 現在優先採用**同一個 Apps Script 專案、同一份 Spreadsheet、兩個 Web App deployment** 的方式整合。
+
+Dashboard repo 已內建 `DeskPetGateway.gs`，因此一般使用者不再需要建立第二個 Apps Script 專案，也不需要手動設定 `DESKPET_SPREADSHEET_ID`。
+
+## 推薦架構
+
+```text
+瀏覽器使用者
+   │ Google / Workspace 登入
+   ▼
+Dashboard Deployment（網域限定）
+   │
+   ├──────────────┐
+   ▼              ▼
+同一份 Google Sheet   DeskPet API Deployment（直接 POST）
+                      ▲
+                      │ HTTPS POST + DESKPET_API_TOKEN
+                      │
+                   DeskPet macOS App
+```
+
+兩個 deployment 使用同一份 Apps Script 原始碼，但權限目的不同：
+
+- Dashboard deployment：給人使用，維持 Workspace／網域登入。
+- DeskPet API deployment：給 macOS App 使用，允許直接 POST，並以 `DESKPET_API_TOKEN` 做應用層驗證。
 
 ## 快速設定
 
-1. 依參考專案 README 安裝 Dashboard，並選擇學校、處室與職務。
-2. 取得 Dashboard 安裝時保存的 `BOUND_SPREADSHEET_ID`，或直接從 Spreadsheet 網址複製 ID。
-3. 建立**獨立** Apps Script 專案，將 `GAS/DeskPet_GAS_API_Gateway_v3.js` 貼入 `Code.gs`。
-4. 打開 Apps Script 左側 **Project Settings（專案設定）**，在 **Script Properties（指令碼屬性）** 新增：
+### 1. 更新 Dashboard Apps Script
 
-   ```text
-   DESKPET_SPREADSHEET_ID = 你的 BOUND_SPREADSHEET_ID
-   ```
+依 `school-admin-daily-dashboard` README，把以下檔案放進綁定 Google Sheet 的 Apps Script 專案：
 
-5. 回到 Apps Script 編輯器，從上方函式選單直接執行：
-
-   ```javascript
-   setupDeskPetGateway()
-   ```
-
-   `setupDeskPetGateway()` 是無參數入口，適合直接從 Apps Script 函式選單執行。它會依下列順序處理：
-
-   1. 建立或沿用 `DESKPET_API_TOKEN`。
-   2. 讀取 `DESKPET_SPREADSHEET_ID`。
-   3. 驗證 Dashboard 工作表與設定契約。
-
-   **Token 會先建立。** 因此即使 Spreadsheet ID 尚未設定、填錯，或 Dashboard schema 驗證失敗，已建立的 `DESKPET_API_TOKEN` 仍會保留在 Script Properties，不會因初始化失敗而消失。
-
-6. 回到 **Project Settings → Script Properties**，複製：
-
-   ```text
-   DESKPET_API_TOKEN
-   ```
-
-7. 將 Gateway 獨立部署成 DeskPet 可直接 POST 的 Web App：
-   - 執行身分：**我**
-   - 誰可以存取：**任何人**
-8. 在 DeskPet 設定中填入 Gateway `/exec` URL 與 `DESKPET_API_TOKEN`，啟用後測試連線。
-
-## 只需要先建立 Token
-
-若目前還沒準備好 Spreadsheet，也可以從 Apps Script 函式選單直接執行：
-
-```javascript
-createDeskPetApiToken()
+```text
+Code.gs
+DeskPetGateway.gs
+Installer.html
+Index.html
+Board.html
+appsscript.json
 ```
 
-第一次執行會建立 Token；已有 Token 時會沿用原值。執行紀錄會提示 Token 已建立或已存在，但**不會把秘密值直接印在 log 中**。請從：
+若 Dashboard 已經安裝，只要把新版 `DeskPetGateway.gs` 加進現有專案即可；不需要換 Spreadsheet。
 
-**Project Settings → Script Properties → `DESKPET_API_TOKEN`**
+### 2. 先設定 ALLOWED_DOMAIN
 
-複製實際 Token。
+在 Dashboard 的 `系統設定` 工作表設定：
 
-## 為什麼不直接從函式選單執行 configureDeskPetGateway？
+```text
+ALLOWED_DOMAIN = 你的學校 Workspace 網域
+```
 
-`configureDeskPetGateway(spreadsheetId)` 仍保留給程式碼呼叫或進階使用，但 Apps Script 編輯器上方的函式選單**不能傳入參數**。因此一般安裝流程不要直接從選單執行它，否則 `spreadsheetId` 會是空值，並得到 `Spreadsheet ID 格式不正確`。
+例如：
 
-一般使用者請改用：
+```text
+ALLOWED_DOMAIN = school.edu.tw
+```
 
-1. Script Properties 設定 `DESKPET_SPREADSHEET_ID`
-2. 執行無參數的 `setupDeskPetGateway()`
+**同專案模式要建立一個「任何人」可存取的 API deployment，因此這一步不可省略。** 管理台資料仍會經過 Dashboard 的 `assertAuthorized_()`，匿名 API deployment 不應成為管理台資料入口。
+
+### 3. 建立 DeskPet API Token
+
+在 Apps Script 編輯器直接執行：
+
+```javascript
+setupDeskPetGateway()
+```
+
+它會：
+
+1. 建立或沿用 `DESKPET_API_TOKEN`。
+2. 直接使用 Dashboard 已綁定的 Spreadsheet。
+3. 驗證 `任務清單`、`工作紀錄`、`系統設定`、`選項清單`。
+4. 驗證任務 19 欄與工作紀錄 7 欄契約。
+5. 回傳學校、處室、職務與動態選項 metadata。
+
+不再需要：
+
+```text
+DESKPET_SPREADSHEET_ID
+BOUND_SPREADSHEET_ID 手動複製
+第二個 Apps Script 專案
+```
+
+### 4. 取得 Token
+
+可從 Apps Script 函式選單執行：
+
+```javascript
+showDeskPetApiToken()
+```
+
+Token 會顯示在執行記錄，並保存在 Script Properties：
+
+```text
+DESKPET_API_TOKEN
+```
+
+正常重新部署不需要換 Token。
+
+### 5. 建立 DeskPet API Deployment
+
+在**同一個 Apps Script 專案**選擇：
+
+```text
+部署 → 新增部署 → 網頁應用程式
+```
+
+建立第二個 deployment，專門給 DeskPet：
+
+- 執行身分：部署者
+- 誰可以存取：可讓 DeskPet 不經 Google 登入直接 POST 的模式，通常為「任何人」
+
+部署後會得到另一個 `/exec` URL。
+
+**DeskPet 必須填這個 API deployment URL，不是 Dashboard 管理台 URL。**
+
+如果填到管理台 deployment，Google 會先要求 Workspace 登入，DeskPet 收到的就會是登入頁／HTML，而不是 JSON。
+
+### 6. DeskPet 設定
+
+在 DeskPet「設定 → 校務任務系統（Google Apps Script）」填入：
+
+```text
+網址  = DeskPet API deployment 的 /exec URL
+Token = DESKPET_API_TOKEN
+```
+
+啟用後按「測試連線」。
+
+成功時 DeskPet 會同步：
+
+- 學校名稱
+- 處室
+- 職務
+- 任務類型
+- 狀態
+- 優先級
+- 看板顯示選項
 
 ## API Token 管理
 
-正常重新部署 Gateway **不需要換 Token**。只要仍是同一個 Apps Script 專案，`DESKPET_API_TOKEN` 會保存在 Script Properties。
-
-若需要確認 Gateway 狀態，可執行：
+查看目前狀態：
 
 ```javascript
 getDeskPetGatewayStatus()
 ```
 
-這個函數只回傳 `tokenConfigured`、`spreadsheetConfigured`、`dashboardContractValid` 等狀態，不會輸出 Token 秘密值。
+重新顯示／建立 Token：
 
-只有在 Token 遺失、疑似外洩，或你確定要輪替憑證時，才執行：
+```javascript
+showDeskPetApiToken()
+```
+
+強制輪替 Token：
 
 ```javascript
 resetDeskPetApiToken()
 ```
 
-`resetDeskPetApiToken()` 會立即產生新 Token，舊 Token 同時失效；執行後必須把新的 Token 同步更新到 DeskPet 設定。
+`resetDeskPetApiToken()` 會讓舊 Token 立即失效，之後必須同步更新 DeskPet Keychain 中的 Token。
 
-請勿把 Gateway 合併進 Dashboard 的 `Code.gs`；兩者使用不同 Web App 入口與授權模型。
+## 常見錯誤
 
-完整架構、契約、處室切換與安全說明見 [`GAS_PROJECT_INTEGRATION.md`](GAS_PROJECT_INTEGRATION.md)。
+### Web App 回傳登入／HTML 頁面
+
+幾乎都表示 DeskPet 填到了錯誤 deployment：
+
+```text
+錯：Dashboard 管理台 /exec URL
+對：DeskPet API /exec URL
+```
+
+兩者可以來自同一 Apps Script 專案，但 deployment 權限不同。
+
+### HTTP 401 / 403
+
+代表 Google 在 DeskPet API 邏輯執行前就拒絕了請求。重新檢查 DeskPet API deployment 的「誰可以存取」。
+
+### Token 不正確
+
+執行：
+
+```javascript
+showDeskPetApiToken()
+```
+
+重新複製 `DESKPET_API_TOKEN` 到 DeskPet。
+
+### Dashboard schema 不符合
+
+先在 `school-admin-daily-dashboard` 執行安裝／遷移，確認存在：
+
+```text
+任務清單
+工作紀錄
+系統設定
+選項清單
+```
+
+再執行：
+
+```javascript
+getDeskPetGatewayStatus()
+```
+
+## 舊版獨立 Gateway
+
+`DeskPet/GAS/DeskPet_GAS_API_Gateway_v3.js` 仍保留作為**相容與備援模式**。以下情況可繼續使用獨立 Gateway：
+
+- 無法在 Dashboard 同專案建立可直接 POST 的第二個 deployment。
+- 不適合設定 `ALLOWED_DOMAIN`。
+- Workspace 管理政策禁止同專案的公開 API deployment。
+
+舊版模式仍使用：
+
+```text
+DESKPET_SPREADSHEET_ID
+DESKPET_API_TOKEN
+```
+
+但一般安裝建議改用 Dashboard 內建的 `DeskPetGateway.gs`。
+
+完整架構、契約與處室切換說明見 [`GAS_PROJECT_INTEGRATION.md`](GAS_PROJECT_INTEGRATION.md)。
