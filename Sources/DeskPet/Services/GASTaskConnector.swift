@@ -52,7 +52,7 @@ final class GASTaskConnector: GASTaskUpdating {
                 return "校務任務系統回傳格式無法辨識"
             case .httpStatus(let code):
                 if code == 401 || code == 403 {
-                    return "Google Web App 在進入 DeskPet API 前拒絕請求（HTTP \(code)）。請改用獨立 DeskPet API Gateway，並將 Gateway 部署為『執行身分：我／存取：任何人』。"
+                    return "Google Web App 在進入 DeskPet API 前拒絕請求（HTTP \(code)）。請確認填入的是 DeskPet API deployment 的 /exec 網址，而不是 Dashboard 管理台網址；API deployment 必須允許 DeskPet 不經 Google 登入直接 POST。"
                 }
                 return "校務任務系統連線失敗（HTTP \(code)）"
             case .api(let message):
@@ -308,7 +308,7 @@ final class GASTaskConnector: GASTaskUpdating {
             decoded = try JSONDecoder().decode(APIResponse.self, from: data)
         } catch {
             if let text = String(data: data, encoding: .utf8), text.contains("<html") || text.contains("<!DOCTYPE") {
-                throw ConnectorError.api("Web App 回傳登入／HTML 頁面；請確認 API 部署允許 DeskPet 直接 POST，或改用獨立 API Gateway 部署。")
+                throw ConnectorError.api("Web App 回傳登入／HTML 頁面；目前網址多半是 Dashboard 管理台 deployment。請改填 DeskPet API deployment 的 /exec 網址；同一 Apps Script 專案可建立第二個 API deployment，也可使用舊版獨立 Gateway。")
             }
             throw ConnectorError.invalidResponse
         }
