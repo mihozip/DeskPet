@@ -119,6 +119,9 @@ function doPost(e) {
 /**
  * 儲存目標 Spreadsheet ID，並驗證 school-admin-daily-dashboard 契約。
  * 若初始化失敗，會還原原本設定，避免留下無法使用的 ID。
+ *
+ * 注意：Apps Script 編輯器的函式選單無法傳入參數。
+ * 一般安裝請改用 Script Properties + setupDeskPetGateway()。
  */
 function configureDeskPetGateway(spreadsheetId) {
   const id = String(spreadsheetId || '').trim();
@@ -131,7 +134,7 @@ function configureDeskPetGateway(spreadsheetId) {
   props.setProperty('DESKPET_SPREADSHEET_ID', id);
 
   try {
-    return initializeDeskPetGateway();
+    return setupDeskPetGateway();
   } catch (error) {
     if (previousId) {
       props.setProperty('DESKPET_SPREADSHEET_ID', previousId);
@@ -143,17 +146,48 @@ function configureDeskPetGateway(spreadsheetId) {
 }
 
 /**
- * 已設定 DESKPET_SPREADSHEET_ID 後可手動執行。
- * 建議第一次安裝直接執行 configureDeskPetGateway(spreadsheetId)。
+ * Apps Script 編輯器可直接執行的無參數安裝入口。
+ *
+ * 執行順序刻意先建立 Token，再處理 Spreadsheet / Dashboard 驗證：
+ * 即使 Spreadsheet 尚未設定或 Dashboard schema 有問題，DESKPET_API_TOKEN
+ * 仍會先保存到 Script Properties，不會因初始化失敗而完全拿不到 Token。
+ *
+ * 第一次安裝建議：
+ * 1. Project Settings → Script Properties 新增 DESKPET_SPREADSHEET_ID。
+ * 2. 從函式選單執行 setupDeskPetGateway。
+ * 3. 回到 Script Properties 複製 DESKPET_API_TOKEN。
  */
-function initializeDeskPetGateway() {
-  const ss = openSpreadsheet_();
-  const integration = validateDashboardContract_(ss);
+function setupDeskPetGateway() {
   const tokenState = createDeskPetApiToken();
+  const props = PropertiesService.getScriptProperties();
+  const spreadsheetId = String(props.getProperty('DESKPET_SPREADSHEET_ID') || '').trim();
+
+  if (!spreadsheetId) {
+    console.info('DeskPet API Token 已建立／確認存在；請設定 DESKPET_SPREADSHEET_ID 後再次執行 setupDeskPetGateway。');
+    return {
+      ok: true,
+      spreadsheetConfigured: false,
+      dashboardContractValid: false,
+      tokenConfigured: tokenState.tokenConfigured,
+      tokenCreated: tokenState.tokenCreated,
+      apiVersion: GATEWAY_CONFIG.API_VERSION,
+      integration: null,
+      message: 'Token 已建立／確認存在。請在 Project Settings → Script Properties 新增 DESKPET_SPREADSHEET_ID，再次執行 setupDeskPetGateway。',
+    };
+  }
+
+  if (!/^[A-Za-z0-9_-]{20,}$/.test(spreadsheetId)) {
+    throw apiError_('INVALID_SPREADSHEET_ID', 'DESKPET_SPREADSHEET_ID 格式不正確。');
+  }
+
+  const ss = SpreadsheetApp.openById(spreadsheetId);
+  const integration = validateDashboardContract_(ss);
+  console.info('DeskPet Gateway 初始化完成；Token 與 Dashboard 均已設定。');
 
   return {
     ok: true,
     spreadsheetConfigured: true,
+    dashboardContractValid: true,
     tokenConfigured: tokenState.tokenConfigured,
     tokenCreated: tokenState.tokenCreated,
     apiVersion: GATEWAY_CONFIG.API_VERSION,
@@ -162,13 +196,19 @@ function initializeDeskPetGateway() {
 }
 
 /**
+ * 相容舊版函式名稱；實際初始化統一交給 setupDeskPetGateway()。
+ */
+function initializeDeskPetGateway() {
+  return setupDeskPetGateway();
+}
+
+/**
  * 建立或取得目前的 DeskPet API Token。
  * - 第一次執行：建立 DESKPET_API_TOKEN。
  * - 已存在 Token：保留原值，不旋轉，避免重新部署後既有 DeskPet 失效。
  * - 此函數只供 Apps Script 編輯器手動執行，不會透過 doGet/doPost 對外暴露。
  *
- * 執行後可直接從回傳結果取得 token，也可在
- * Project Settings → Script Properties → DESKPET_API_TOKEN 複製。
+ * 執行後可在 Project Settings → Script Properties → DESKPET_API_TOKEN 複製。
  */
 function createDeskPetApiToken() {
   const props = PropertiesService.getScriptProperties();
@@ -179,6 +219,10 @@ function createDeskPetApiToken() {
     token = generateToken_();
     props.setProperty('DESKPET_API_TOKEN', token);
   }
+
+  console.info(tokenCreated
+    ? 'DeskPet API Token 已建立，請到 Project Settings → Script Properties 複製 DESKPET_API_TOKEN。'
+    : 'DeskPet API Token 已存在，沿用原 Token。');
 
   return {
     ok: true,
@@ -644,7 +688,7 @@ function applyRowFormats_(sheet, rowNumber, headerMap) {
 function configuredSpreadsheetId_() {
   const id = String(PropertiesService.getScriptProperties().getProperty('DESKPET_SPREADSHEET_ID') || '').trim();
   if (!id) {
-    throw apiError_('GATEWAY_NOT_CONFIGURED', '尚未設定 DESKPET_SPREADSHEET_ID。請先執行 configureDeskPetGateway(spreadsheetId)。');
+    throw apiError_('GATEWAY_NOT_CONFIGURED', '尚未設定 DESKPET_SPREADSHEET_ID。請先執行 setupDeskPetGateway()，並依提示設定 Spreadsheet ID。');
   }
   return id;
 }
