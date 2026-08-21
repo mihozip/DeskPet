@@ -82,6 +82,7 @@ const sheets = {
 const spreadsheet = {
   getSheetByName: (name) => sheets[name] || null,
 };
+context.SpreadsheetApp.openById = () => spreadsheet;
 
 const metadata = context.validateDashboardContract_(spreadsheet);
 assert.equal(metadata.schema, 'school-admin-daily-dashboard/v1');
@@ -113,12 +114,36 @@ assert.throws(
 
 assert.match(source, /allowedKeys = \['status', 'dueDate', 'dueTime', 'nextAction', 'waitingFor', 'progress'\]/);
 assert.match(source, /headerMap\['下一步行動'\]/);
+assert.match(source, /function setupDeskPetGateway\(\)/);
 assert.match(source, /function createDeskPetApiToken\(\)/);
 assert.match(source, /function resetDeskPetApiToken\(\)/);
 
 assert.throws(() => context.verifyToken_('wrong-token'), /Token 無效/);
 assert.doesNotThrow(() => context.verifyToken_('secret-token'));
 
+scriptProperties.delete('DESKPET_SPREADSHEET_ID');
+const setupWithoutSpreadsheet = context.setupDeskPetGateway();
+assert.equal(setupWithoutSpreadsheet.ok, true);
+assert.equal(setupWithoutSpreadsheet.spreadsheetConfigured, false);
+assert.equal(setupWithoutSpreadsheet.dashboardContractValid, false);
+assert.equal(setupWithoutSpreadsheet.tokenConfigured, true);
+assert.equal(scriptProperties.get('DESKPET_API_TOKEN'), 'secret-token');
+
+scriptProperties.delete('DESKPET_API_TOKEN');
+scriptProperties.set('DESKPET_SPREADSHEET_ID', '12345678901234567890');
+const normalOpenById = context.SpreadsheetApp.openById;
+context.SpreadsheetApp.openById = () => ({ getSheetByName: () => null });
+assert.throws(() => context.setupDeskPetGateway(), /school-admin-daily-dashboard README/);
+assert.equal(Boolean(scriptProperties.get('DESKPET_API_TOKEN')), true);
+context.SpreadsheetApp.openById = normalOpenById;
+
+const setupWithSpreadsheet = context.setupDeskPetGateway();
+assert.equal(setupWithSpreadsheet.ok, true);
+assert.equal(setupWithSpreadsheet.spreadsheetConfigured, true);
+assert.equal(setupWithSpreadsheet.dashboardContractValid, true);
+assert.equal(setupWithSpreadsheet.tokenConfigured, true);
+
+scriptProperties.set('DESKPET_API_TOKEN', 'secret-token');
 const existingToken = context.createDeskPetApiToken();
 assert.equal(existingToken.token, 'secret-token');
 assert.equal(existingToken.tokenCreated, false);
