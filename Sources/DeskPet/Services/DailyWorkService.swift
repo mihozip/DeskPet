@@ -21,27 +21,49 @@ struct DailyWorkService {
         snoozedUntil: [String: Date] = [:],
         now: Date = Date()
     ) -> DailyWorkSnapshot {
-        let activeTasks = tasks.filter { !Self.isDone($0) && !isSnoozed($0, snoozedUntil: snoozedUntil, now: now) }
-        let candidates = sortedCandidates(from: activeTasks, now: now)
-        let waiting = waitingItems(from: activeTasks, events: events, now: now)
+        let openTasks = tasks.filter { !Self.isDone($0) }
+        let actionableTasks = openTasks.filter { !isSnoozed($0, snoozedUntil: snoozedUntil, now: now) }
+        let candidates = sortedCandidates(from: actionableTasks, now: now)
+        let waiting = waitingItems(
+            from: openTasks,
+            events: events,
+            snoozedUntil: snoozedUntil,
+            now: now
+        )
+        let followUpQueue = waiting
+            .filter { $0.interventionRequired && !$0.isAlertSuppressed }
+            .sorted {
+                if $0.riskScore != $1.riskScore { return $0.riskScore > $1.riskScore }
+                if $0.waitingDays != $1.waitingDays { return $0.waitingDays > $1.waitingDays }
+                return $0.task.taskId < $1.task.taskId
+            }
         let brief = TodayBrief(
             date: calendar.startOfDay(for: now),
             overdueCount: candidates.filter { $0.tier == .overdue }.count,
             dueTodayCount: candidates.filter { $0.tier == .dueToday }.count,
             highPriorityCount: candidates.filter { $0.tier == .highPriority }.count,
             waitingCount: waiting.count,
+            followUpDueCount: followUpQueue.count,
             pendingInboxCount: inboxItems.filter { $0.status == .inbox }.count,
             suggestions: Array(candidates.prefix(5))
         )
-        let daily = dailyWrap(events: events, tasks: activeTasks, candidates: candidates, now: now)
-        let weekly = weeklyReview(events: events, tasks: activeTasks, waitingItems: waiting, candidates: candidates, now: now)
+        let daily = dailyWrap(events: events, tasks: actionableTasks, candidates: candidates, now: now)
+        let weekly = weeklyReview(events: events, tasks: actionableTasks, waitingItems: waiting, candidates: candidates, now: now)
         return DailyWorkSnapshot(
             generatedAt: now,
             todayBrief: brief,
             waitingItems: waiting,
+            followUpQueue: followUpQueue,
             dailyWrap: daily,
             weeklyReview: weekly,
-            petWorkState: petState(brief: brief, waitingItems: waiting, dailyWrap: daily, activeTaskCount: activeTasks.count, now: now)
+            petWorkState: petState(
+                brief: brief,
+                waitingItems: waiting,
+                followUpQueue: followUpQueue,
+                dailyWrap: daily,
+                activeTaskCount: actionableTasks.count,
+                now: now
+            )
         )
     }
 
@@ -72,22 +94,69 @@ struct DailyWorkService {
         return .normal
     }
 
-    func waitingItems(from tasks: [GASTaskDigest.Task], events: [WorkEvent], now: Date) -> [WaitingItem] {
+    func waitingItems(
+        from tasks: [GASTaskDigest.Task],
+        events: [WorkEvent],
+        snoozedUntil: [String: Date] = [:],
+        now: Date
+    ) -> [WaitingItem] {
         tasks.compactMap { task -> WaitingItem? in
-            guard Self.isWaiting(task) else { return nil }
+            guard Self.isWaiting(task), !Self.isDone(task) else { return nil }
             let target = task.waitingFor?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let eventDate = events
-                .filter { $0.referenceID == task.taskId && Self.eventIndicatesWaiting($0) }
+            let taskEvents = events.filter { $0.referenceID == task.taskId }
+            let waitingEventDate = taskEvents
+                .filter { Self.eventIndicatesWaiting($0) }
                 .map(\.timestamp)
                 .max()
             let fallback = dateTime(task.updatedAt)
-            let since = eventDate ?? fallback
+            let since = waitingEventDate ?? fallback
             let days = since.map {
                 max(0, calendar.dateComponents([.day], from: calendar.startOfDay(for: $0), to: calendar.startOfDay(for: now)).day ?? 0)
             } ?? 0
-            return WaitingItem(task: task, waitingTarget: target, waitingSince: since, waitingDays: days, isHeuristic: eventDate == nil)
+
+            let followUps = taskEvents
+                .filter { event in
+                    guard Self.eventIndicatesFollowUp(event) else { return false }
+                    guard let since else { return true }
+                    return event.timestamp >= since
+                }
+                .sorted { $0.timestamp < $1.timestamp }
+            let lastFollowUpAt = followUps.last?.timestamp
+            let recommended = recommendedFollowUpDate(
+                task: task,
+                waitingSince: since,
+                lastFollowUpAt: lastFollowUpAt,
+                now: now
+            )
+            let score = waitingRiskScore(
+                task: task,
+                waitingTarget: target,
+                waitingDays: days,
+                followUpCount: followUps.count,
+                recommendedFollowUpAt: recommended,
+                now: now
+            )
+            let level = waitingRiskLevel(score: score)
+            let dueForFollowUp = recommended.map { $0 <= now } ?? (days >= waitingTooLongDays)
+            let suppressedUntil = snoozedUntil[task.taskId].flatMap { $0 > now ? $0 : nil }
+
+            return WaitingItem(
+                task: task,
+                waitingTarget: target,
+                waitingSince: since,
+                waitingDays: days,
+                isHeuristic: waitingEventDate == nil,
+                lastFollowUpAt: lastFollowUpAt,
+                followUpCount: followUps.count,
+                recommendedFollowUpAt: recommended,
+                riskScore: score,
+                riskLevel: level,
+                interventionRequired: level >= .followUp || dueForFollowUp,
+                alertSuppressedUntil: suppressedUntil
+            )
         }
         .sorted {
+            if $0.riskScore != $1.riskScore { return $0.riskScore > $1.riskScore }
             if $0.waitingDays != $1.waitingDays { return $0.waitingDays > $1.waitingDays }
             return $0.task.taskId < $1.task.taskId
         }
@@ -147,6 +216,12 @@ struct DailyWorkService {
             guard let category = classify($0) else { return false }
             return category == .completed || category == .progressed
         })
+        let averageDays: Double
+        if waitingItems.isEmpty {
+            averageDays = 0
+        } else {
+            averageDays = Double(waitingItems.reduce(0) { $0 + $1.waitingDays }) / Double(waitingItems.count)
+        }
         return WeeklyReview(
             interval: interval,
             events: weekEvents,
@@ -154,6 +229,9 @@ struct DailyWorkService {
             achievements: Array(achievements.prefix(8)),
             inProgress: Array(tasks.prefix(12)),
             waitingTooLong: waitingItems.filter { $0.waitingDays >= waitingTooLongDays },
+            waitingAverageDays: averageDays,
+            waitingCriticalCount: waitingItems.filter { $0.riskLevel == .critical }.count,
+            followUpCount: waitingItems.reduce(0) { $0 + $1.followUpCount },
             nextWeekPriorities: Array(candidates.prefix(5))
         )
     }
@@ -161,18 +239,98 @@ struct DailyWorkService {
     private func petState(
         brief: TodayBrief,
         waitingItems: [WaitingItem],
+        followUpQueue: [WaitingItem],
         dailyWrap: DailyWrap,
         activeTaskCount: Int,
         now: Date
     ) -> PetWorkState {
-        if brief.overdueCount > 0 || brief.dueTodayCount > 0 { return .attention }
-        if waitingItems.contains(where: { $0.waitingDays >= waitingTooLongDays }) { return .waiting }
+        if brief.overdueCount > 0 || brief.dueTodayCount > 0 || followUpQueue.contains(where: { $0.riskLevel == .critical }) {
+            return .attention
+        }
+        if !followUpQueue.isEmpty || waitingItems.contains(where: { $0.waitingDays >= waitingTooLongDays && !$0.isAlertSuppressed }) {
+            return .waiting
+        }
         if activeTaskCount == 0 {
             let hour = calendar.component(.hour, from: now)
             return hour < 7 || hour >= 21 ? .sleep : .idle
         }
         if brief.highPriorityCount == 0 && dailyWrap.count(.completed) > 0 { return .success }
         return .normal
+    }
+
+    private func recommendedFollowUpDate(
+        task: GASTaskDigest.Task,
+        waitingSince: Date?,
+        lastFollowUpAt: Date?,
+        now: Date
+    ) -> Date? {
+        let base: Date?
+        if let lastFollowUpAt {
+            base = calendar.date(byAdding: .day, value: 2, to: lastFollowUpAt)
+        } else if let waitingSince {
+            base = calendar.date(byAdding: .day, value: waitingTooLongDays, to: waitingSince)
+        } else {
+            base = nil
+        }
+
+        guard let deadline = deadline(for: task) else { return base }
+        if deadline <= now { return calendar.startOfDay(for: now) }
+        let deadlineWarning = calendar.date(byAdding: .day, value: -1, to: deadline) ?? deadline
+        guard let base else { return deadlineWarning }
+        return min(base, deadlineWarning)
+    }
+
+    private func waitingRiskScore(
+        task: GASTaskDigest.Task,
+        waitingTarget: String,
+        waitingDays: Int,
+        followUpCount: Int,
+        recommendedFollowUpAt: Date?,
+        now: Date
+    ) -> Int {
+        var score = 0
+
+        switch waitingDays {
+        case 0...2: break
+        case 3...4: score += 15
+        case 5...6: score += 25
+        default: score += 35
+        }
+
+        switch priorityRank(task.priority) {
+        case 0: score += 20
+        case 1: score += 5
+        default: break
+        }
+
+        if waitingTarget.isEmpty { score += 10 }
+
+        if let deadline = deadline(for: task) {
+            let remaining = deadline.timeIntervalSince(now)
+            if remaining < 0 {
+                score += 35
+            } else if remaining <= 24 * 3600 {
+                score += 30
+            } else if remaining <= 3 * 24 * 3600 {
+                score += 20
+            } else if remaining <= 7 * 24 * 3600 {
+                score += 10
+            }
+        }
+
+        if recommendedFollowUpAt.map({ $0 <= now }) == true { score += 20 }
+        if followUpCount == 0 && waitingDays >= 5 { score += 10 }
+
+        return min(100, score)
+    }
+
+    private func waitingRiskLevel(score: Int) -> WaitingRiskLevel {
+        switch score {
+        case 75...: return .critical
+        case 50..<75: return .followUp
+        case 25..<50: return .watch
+        default: return .normal
+        }
     }
 
     private func countsByCategory(_ events: [WorkEvent]) -> [DailyWorkEventCategory: Int] {
@@ -251,5 +409,14 @@ struct DailyWorkService {
             || text.contains("等待對象")
             || text.contains(" waiting for ")
             || (event.detail ?? "").trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("等待 ")
+    }
+
+    private static func eventIndicatesFollowUp(_ event: WorkEvent) -> Bool {
+        let text = [event.title, event.detail ?? ""].joined(separator: " ").lowercased()
+        return text.contains("已催辦")
+            || text.contains("催辦")
+            || text.contains("追蹤")
+            || text.contains("follow up")
+            || text.contains("follow-up")
     }
 }
