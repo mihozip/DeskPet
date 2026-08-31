@@ -10,6 +10,24 @@ enum DailyWorkPriorityTier: Int, CaseIterable, Comparable {
     static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
 }
 
+enum WaitingRiskLevel: Int, CaseIterable, Comparable {
+    case normal
+    case watch
+    case followUp
+    case critical
+
+    static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
+
+    var label: String {
+        switch self {
+        case .normal: return "正常等待"
+        case .watch: return "建議注意"
+        case .followUp: return "建議追蹤"
+        case .critical: return "應立即介入"
+        }
+    }
+}
+
 struct NextActionCandidate: Identifiable, Equatable {
     let task: GASTaskDigest.Task
     let tier: DailyWorkPriorityTier
@@ -23,6 +41,7 @@ struct TodayBrief: Equatable {
     let dueTodayCount: Int
     let highPriorityCount: Int
     let waitingCount: Int
+    let followUpDueCount: Int
     let pendingInboxCount: Int
     let suggestions: [NextActionCandidate]
 }
@@ -33,8 +52,16 @@ struct WaitingItem: Identifiable, Equatable {
     let waitingSince: Date?
     let waitingDays: Int
     let isHeuristic: Bool
+    let lastFollowUpAt: Date?
+    let followUpCount: Int
+    let recommendedFollowUpAt: Date?
+    let riskScore: Int
+    let riskLevel: WaitingRiskLevel
+    let interventionRequired: Bool
+    let alertSuppressedUntil: Date?
 
     var id: String { task.taskId }
+    var isAlertSuppressed: Bool { alertSuppressedUntil != nil }
 }
 
 enum DailyWorkEventCategory: String, CaseIterable {
@@ -63,6 +90,9 @@ struct WeeklyReview: Equatable {
     let achievements: [String]
     let inProgress: [GASTaskDigest.Task]
     let waitingTooLong: [WaitingItem]
+    let waitingAverageDays: Double
+    let waitingCriticalCount: Int
+    let followUpCount: Int
     let nextWeekPriorities: [NextActionCandidate]
 
     func count(_ category: DailyWorkEventCategory) -> Int { counts[category, default: 0] }
@@ -81,6 +111,7 @@ struct DailyWorkSnapshot: Equatable {
     let generatedAt: Date
     let todayBrief: TodayBrief
     let waitingItems: [WaitingItem]
+    let followUpQueue: [WaitingItem]
     let dailyWrap: DailyWrap
     let weeklyReview: WeeklyReview
     let petWorkState: PetWorkState

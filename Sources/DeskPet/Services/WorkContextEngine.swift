@@ -21,12 +21,19 @@ struct WorkContextEngine {
         snoozedUntil: [String: Date] = [:],
         now: Date = Date()
     ) -> WorkContextSnapshot {
-        let activeTasks = tasks.filter { task in
-            guard !Self.isDone(task) else { return false }
+        let openTasks = tasks.filter { !Self.isDone($0) }
+        let actionableTasks = openTasks.filter { task in
             guard let snoozeExpiry = snoozedUntil[task.taskId] else { return true }
             return snoozeExpiry <= now
         }
-        let candidates = dailyWorkService.sortedCandidates(from: activeTasks, now: now)
+        let candidates = dailyWorkService.sortedCandidates(from: actionableTasks, now: now)
+        let waitingItems = dailyWorkService.waitingItems(
+            from: openTasks,
+            events: workEvents,
+            snoozedUntil: snoozedUntil,
+            now: now
+        )
+        let interventionWaiting = waitingItems.first { $0.interventionRequired && !$0.isAlertSuppressed }
         let pendingInbox = inboxItems
             .filter { $0.status == .inbox }
             .sorted {
@@ -61,6 +68,10 @@ struct WorkContextEngine {
             append(calendarItem(currentEvent, bucket: .now), to: &nowItems, limit: 3)
         }
 
+        if let interventionWaiting {
+            append(waitingItem(interventionWaiting, bucket: .now), to: &nowItems, limit: 3)
+        }
+
         for candidate in candidates
         where !Self.isWaiting(candidate.task) && [.overdue, .dueToday, .highPriority].contains(candidate.tier) {
             append(taskItem(candidate, bucket: .now), to: &nowItems, limit: 3)
@@ -88,8 +99,8 @@ struct WorkContextEngine {
             append(inboxItem(firstInbox, bucket: .next, now: now), to: &nextItems, limit: 3)
         }
 
-        for candidate in candidates where Self.isWaiting(candidate.task) {
-            append(taskItem(candidate, bucket: .later), to: &laterItems, limit: 5)
+        for waiting in waitingItems {
+            append(waitingItem(waiting, bucket: .later), to: &laterItems, limit: 5)
         }
 
         for event in visibleCalendar where event.startDate > now {
@@ -106,7 +117,14 @@ struct WorkContextEngine {
 
         return WorkContextSnapshot(
             generatedAt: now,
-            headline: headline(nowItems: nowItems, currentEvent: currentEvent, nextEvent: nextEvent, pendingInboxCount: pendingInbox.count, now: now),
+            headline: headline(
+                nowItems: nowItems,
+                currentEvent: currentEvent,
+                nextEvent: nextEvent,
+                interventionWaiting: interventionWaiting,
+                pendingInboxCount: pendingInbox.count,
+                now: now
+            ),
             currentEvent: currentEvent,
             nextEvent: nextEvent,
             recentActivity: recentActivity,
@@ -120,11 +138,16 @@ struct WorkContextEngine {
         nowItems: [WorkContextItem],
         currentEvent: CalendarEventSummary?,
         nextEvent: CalendarEventSummary?,
+        interventionWaiting: WaitingItem?,
         pendingInboxCount: Int,
         now: Date
     ) -> String {
         if let currentEvent {
             return "現在正在進行：\(currentEvent.title)"
+        }
+
+        if let interventionWaiting {
+            return "等待案件需要介入：\(interventionWaiting.task.name)（已等 \(interventionWaiting.waitingDays) 天）"
         }
 
         if let nextEvent,
@@ -181,6 +204,23 @@ struct WorkContextEngine {
             title: task.name,
             detail: details.isEmpty ? task.status : details.joined(separator: " · "),
             source: .task(task)
+        )
+    }
+
+    private func waitingItem(_ waiting: WaitingItem, bucket: WorkContextBucket) -> WorkContextItem {
+        var details: [String] = []
+        details.append(waiting.waitingTarget.isEmpty ? "等待對象未填" : "等待：\(waiting.waitingTarget)")
+        details.append("已 \(waiting.waitingDays) 天")
+        details.append(waiting.riskLevel.label)
+        if waiting.followUpCount > 0 { details.append("已催辦 \(waiting.followUpCount) 次") }
+        if waiting.isAlertSuppressed { details.append("提醒已暫停") }
+
+        return WorkContextItem(
+            id: "task:\(waiting.task.taskId)",
+            bucket: bucket,
+            title: waiting.task.name,
+            detail: details.joined(separator: " · "),
+            source: .task(waiting.task)
         )
     }
 

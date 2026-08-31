@@ -14,11 +14,13 @@ on:
       - tests/rc1_1_2_contract.test.sh
       - tests/rc1_1_3_polish_contract.test.sh
       - tests/rc1_2_1_context_briefing_contract.test.sh
+      - tests/rc1_3_waiting_intelligence_contract.test.sh
       - tests/apple_permission_contract.test.sh
       - tests/gemini_model_contract.test.sh
       - docs/RC1_1_1_DESKTOP_INTERACTION.md
       - docs/RC1_2_WORK_CONTEXT.md
       - docs/RC1_2_1_CONTEXT_BRIEFING.md
+      - docs/RC1_3_WAITING_INTELLIGENCE.md
       - script/build_and_run.sh
       - script/build_release.sh
       - script/install_or_update.sh
@@ -51,6 +53,9 @@ jobs:
           NOTES_PATH="$RUNNER_TEMP/release-notes.md"
 
           case "$VERSION" in
+            1.3.0.0)
+              RELEASE_TITLE="DeskPet RC1.3 — Waiting Intelligence"
+              ;;
             1.2.1.1)
               RELEASE_TITLE="DeskPet RC1.2.1.1 — Task Mutation Hotfix"
               ;;
@@ -148,6 +153,10 @@ jobs:
         if: env.SHOULD_PUBLISH == 'true'
         run: bash tests/rc1_2_1_context_briefing_contract.test.sh
 
+      - name: Validate RC1.3 Waiting Intelligence contract
+        if: env.SHOULD_PUBLISH == 'true'
+        run: bash tests/rc1_3_waiting_intelligence_contract.test.sh
+
       - name: Validate Apple permission and signing contract
         if: env.SHOULD_PUBLISH == 'true'
         run: bash tests/apple_permission_contract.test.sh
@@ -172,7 +181,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "$VERSION" == "1.2.1.0" && -s docs/RC1_2_1_CONTEXT_BRIEFING.md ]]; then
+          if [[ "$VERSION" == "1.3.0.0" && -s docs/RC1_3_WAITING_INTELLIGENCE.md ]]; then
+            cat docs/RC1_3_WAITING_INTELLIGENCE.md > "$NOTES_PATH"
+          elif [[ "$VERSION" == "1.2.1.0" && -s docs/RC1_2_1_CONTEXT_BRIEFING.md ]]; then
             cat docs/RC1_2_1_CONTEXT_BRIEFING.md > "$NOTES_PATH"
           elif [[ "$VERSION" == "1.1.1.0" && -s docs/RC1_1_1_DESKTOP_INTERACTION.md ]]; then
             cat docs/RC1_1_1_DESKTOP_INTERACTION.md > "$NOTES_PATH"
@@ -200,7 +211,8 @@ jobs:
             echo "## Release validation"
             echo
             echo "- GitHub Actions release workflow: PASS"
-            echo "- Swift tests, including task-mutation regression tests: PASS"
+            echo "- Swift tests, including task-mutation and Waiting Intelligence regression tests: PASS"
+            echo "- RC1.3 Waiting Intelligence contract: PASS"
             echo "- RC1.2.1 Context Briefing contract: PASS"
             echo "- Desktop interaction contract: PASS"
             echo "- Updater hand-off contract: PASS"
