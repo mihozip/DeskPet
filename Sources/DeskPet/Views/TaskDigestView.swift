@@ -424,7 +424,7 @@ private struct WaitingRadarRow: View {
             }
             HStack {
                 Button("記錄已催辦") { onAction(.followUp) }
-                    .buttonStyle(item.interventionRequired && !item.isAlertSuppressed ? .borderedProminent : .bordered)
+                    .buttonStyle(.bordered)
                 Button("修改等待對象") { onAction(.changeWaiting) }
                 Button("解除等待") { onAction(.clearWaiting) }
                 Spacer()
