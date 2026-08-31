@@ -37,7 +37,7 @@ final class TaskDigestWindowController: NSWindowController, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.center()
         window.contentView = NSHostingView(
-            rootView: TaskDigestView(
+            rootView: TaskDigestAIContainerView(
                 monitor: monitor,
                 gasConfiguration: gasConfiguration,
                 aiConfiguration: aiConfiguration,
