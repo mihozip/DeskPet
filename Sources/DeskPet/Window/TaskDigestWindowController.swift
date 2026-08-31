@@ -8,11 +8,13 @@ final class TaskDigestWindowController: NSWindowController, NSWindowDelegate {
     private let gasConfiguration: GASTaskConfigurationStore
     private let onOpenTask: (GASTaskDigest.Task) -> Void
     private let viewState = DailyWorkViewState()
+    private let waitingAIContextStore: WaitingAIContextStore
     private var administrativeTitleCancellable: AnyCancellable?
 
     init(
         monitor: GASTaskAmbientMonitor,
         gasConfiguration: GASTaskConfigurationStore,
+        aiConfiguration: AIConfigurationStore,
         captureStore: CaptureStore,
         workEventStore: WorkEventStore,
         snoozeStore: SnoozeStore,
@@ -22,24 +24,27 @@ final class TaskDigestWindowController: NSWindowController, NSWindowDelegate {
         self.monitor = monitor
         self.gasConfiguration = gasConfiguration
         self.onOpenTask = onOpenTask
+        self.waitingAIContextStore = WaitingAIContextStore(configuration: aiConfiguration)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 900, height: 700),
+            contentRect: NSRect(x: 0, y: 0, width: 940, height: 740),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "DeskPet 今日工作"
-        window.minSize = NSSize(width: 820, height: 620)
+        window.minSize = NSSize(width: 860, height: 640)
         window.isReleasedWhenClosed = false
         window.center()
         window.contentView = NSHostingView(
-            rootView: TaskDigestView(
+            rootView: TaskDigestAIContainerView(
                 monitor: monitor,
                 gasConfiguration: gasConfiguration,
+                aiConfiguration: aiConfiguration,
                 captureStore: captureStore,
                 workEventStore: workEventStore,
                 snoozeStore: snoozeStore,
+                waitingAIContextStore: waitingAIContextStore,
                 viewState: viewState,
                 calendarQueryService: CalendarQueryService(),
                 onOpenTask: onOpenTask,
