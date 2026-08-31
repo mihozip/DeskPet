@@ -113,7 +113,35 @@ struct TaskDigestView: View {
                     SummaryBadge(title: "今天", value: brief.dueTodayCount, systemImage: "calendar", tone: .blue)
                     SummaryBadge(title: "高優先", value: brief.highPriorityCount, systemImage: "flag.fill", tone: .orange)
                     SummaryBadge(title: "等待", value: brief.waitingCount, systemImage: "hourglass", tone: .purple)
+                    SummaryBadge(title: "需追蹤", value: brief.followUpDueCount, systemImage: "bell.badge", tone: .red)
                     SummaryBadge(title: "Inbox", value: brief.pendingInboxCount, systemImage: "tray", tone: .secondary)
+                }
+
+                if !snapshot.followUpQueue.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("今天建議追蹤", systemImage: "dot.radiowaves.left.and.right")
+                            .font(.headline)
+                        ForEach(snapshot.followUpQueue.prefix(3)) { item in
+                            Button {
+                                onOpenTaskAction(item.task, .followUp)
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(item.task.name).fontWeight(.medium)
+                                        Text("\(item.riskLevel.label) · 等待 \(item.waitingDays) 天 · \(item.waitingTarget.isEmpty ? "等待對象未填" : item.waitingTarget)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Text("風險 \(item.riskScore)")
+                                        .font(.caption.bold())
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .padding(10)
+                            .background(Color.red.opacity(0.05), in: RoundedRectangle(cornerRadius: 9))
+                        }
+                    }
                 }
 
                 Text("建議先處理")
@@ -141,14 +169,18 @@ struct TaskDigestView: View {
     private func waitingView(_ items: [WaitingItem]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("等待雷達").font(.headline)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("等待雷達").font(.headline)
+                    Text("風險會綜合等待時間、優先度、截止日與催辦節奏；稍後提醒只暫停通知，不會讓案件從雷達消失。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
-                Text("等待天數可能由更新時間推估")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text("需追蹤 \(items.filter { $0.interventionRequired && !$0.isAlertSuppressed }.count)")
+                    .font(.caption.bold())
             }
             if items.isEmpty {
-                EmptyWorkView(title: "目前沒有等待項目", detail: "稍後提醒到期的項目會自動回到雷達。", symbol: "hourglass")
+                EmptyWorkView(title: "目前沒有等待項目", detail: "進入等待的工作會顯示在這裡。", symbol: "hourglass")
             } else {
                 ScrollView {
                     LazyVStack(spacing: 10) {
@@ -193,12 +225,15 @@ struct TaskDigestView: View {
                     ReviewCount(title: "完成", value: review.count(.completed), color: .green)
                     ReviewCount(title: "推進", value: review.count(.progressed), color: .blue)
                     ReviewCount(title: "等待", value: review.count(.waiting), color: .purple)
-                    ReviewCount(title: "新增", value: review.count(.created), color: .orange)
-                    ReviewCount(title: "Inbox", value: review.count(.captured), color: .secondary)
+                    ReviewCount(title: "高風險等待", value: review.waitingCriticalCount, color: .red)
+                    ReviewCount(title: "催辦", value: review.followUpCount, color: .orange)
                 }
+                Text(String(format: "目前等待案件平均 %.1f 天", review.waitingAverageDays))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
                 ReviewList(title: "本週成果", values: review.achievements, empty: "本週尚無工作事件")
                 ReviewList(title: "仍在進行", values: review.inProgress.prefix(6).map(\.name), empty: "目前沒有進行中任務")
-                ReviewList(title: "等待過久", values: review.waitingTooLong.map { "\($0.task.name)（\($0.waitingDays) 天）" }, empty: "沒有等待過久項目")
+                ReviewList(title: "等待過久", values: review.waitingTooLong.map { "\($0.task.name)（\($0.waitingDays) 天｜\($0.riskLevel.label)）" }, empty: "沒有等待過久項目")
                 ReviewList(title: "下週優先事項", values: review.nextWeekPriorities.map(\.task.name), empty: "目前沒有建議事項")
             }
         }
@@ -353,10 +388,34 @@ private struct WaitingRadarRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(item.task.name).font(.headline)
-                    Text("等待對象：\(item.waitingTarget.isEmpty ? "未填寫" : item.waitingTarget) · \(item.waitingDays) 天\(item.isHeuristic ? "（推估）" : "")")
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 7) {
+                        Text(item.task.name).font(.headline)
+                        Text(item.riskLevel.label)
+                            .font(.caption.bold())
+                            .foregroundStyle(riskColor)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(riskColor.opacity(0.10), in: Capsule())
+                        if item.isAlertSuppressed {
+                            Label("提醒暫停", systemImage: "bell.slash")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Text("等待對象：\(item.waitingTarget.isEmpty ? "未填寫" : item.waitingTarget) · \(item.waitingDays) 天\(item.isHeuristic ? "（推估）" : "") · 風險 \(item.riskScore)")
                         .font(.caption).foregroundStyle(.secondary)
+                    if let recommended = item.recommendedFollowUpAt {
+                        Text("建議追蹤：\(Self.dateFormatter.string(from: recommended))")
+                            .font(.caption)
+                            .foregroundStyle(item.interventionRequired && !item.isAlertSuppressed ? Color.orange : Color.secondary)
+                    }
+                    if item.followUpCount > 0 {
+                        let last = item.lastFollowUpAt.map { Self.dateFormatter.string(from: $0) } ?? "—"
+                        Text("已催辦 \(item.followUpCount) 次 · 最近一次 \(last)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                     if let deadline = item.task.deadlineText { Text("截止：\(deadline)").font(.caption).foregroundStyle(.secondary) }
                     if let progress = item.task.progress, !progress.isEmpty { Text("最近進度：\(progress)").font(.callout) }
                 }
@@ -365,6 +424,7 @@ private struct WaitingRadarRow: View {
             }
             HStack {
                 Button("記錄已催辦") { onAction(.followUp) }
+                    .buttonStyle(item.interventionRequired && !item.isAlertSuppressed ? .borderedProminent : .bordered)
                 Button("修改等待對象") { onAction(.changeWaiting) }
                 Button("解除等待") { onAction(.clearWaiting) }
                 Spacer()
@@ -374,8 +434,25 @@ private struct WaitingRadarRow: View {
             .controlSize(.small)
         }
         .padding(12)
-        .background(Color.purple.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+        .background(riskColor.opacity(item.riskLevel >= .followUp ? 0.07 : 0.04), in: RoundedRectangle(cornerRadius: 10))
     }
+
+    private var riskColor: Color {
+        switch item.riskLevel {
+        case .normal: return .secondary
+        case .watch: return .orange
+        case .followUp: return .purple
+        case .critical: return .red
+        }
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_TW")
+        formatter.timeZone = TimeZone(identifier: "Asia/Taipei")
+        formatter.dateFormat = "M/d HH:mm"
+        return formatter
+    }()
 }
 
 private struct SnoozeMenu: View {
