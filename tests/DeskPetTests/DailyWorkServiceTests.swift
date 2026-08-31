@@ -27,6 +27,7 @@ final class DailyWorkServiceTests: XCTestCase {
         let brief = service.snapshot(tasks: tasks, inboxItems: inbox, events: [], now: now).todayBrief
         XCTAssertEqual(brief.suggestions.count, 5)
         XCTAssertEqual(brief.pendingInboxCount, 1)
+        XCTAssertEqual(brief.followUpDueCount, 0)
     }
 
     func testWaitingRadarRejectsEmptyNonWaitingAndCalculatesAge() {
@@ -51,14 +52,55 @@ final class DailyWorkServiceTests: XCTestCase {
         XCTAssertEqual(item?.isHeuristic, false)
     }
 
-    func testSnoozeHidesThenExpiryRestoresItem() {
+    func testWaitingRiskPromotesDeadlineSensitiveItemToCriticalFollowUp() {
+        let now = date("2026-08-10 12:00:00")
+        let waiting = task(
+            "critical",
+            status: "等待他人",
+            priority: "高",
+            dueDate: "2026-08-11",
+            waitingFor: "廠商",
+            updatedAt: "2026-08-01 09:00:00"
+        )
+
+        let snapshot = service.snapshot(tasks: [waiting], inboxItems: [], events: [], now: now)
+        let item = snapshot.waitingItems.first
+        XCTAssertEqual(item?.riskLevel, .critical)
+        XCTAssertEqual(item?.riskScore, 100)
+        XCTAssertEqual(item?.interventionRequired, true)
+        XCTAssertEqual(snapshot.followUpQueue.map(\.task.taskId), ["critical"])
+        XCTAssertEqual(snapshot.todayBrief.followUpDueCount, 1)
+        XCTAssertEqual(snapshot.petWorkState, .attention)
+    }
+
+    func testFollowUpHistoryUpdatesCadenceAndWeeklyAnalytics() {
+        let now = date("2026-08-10 12:00:00")
+        let waiting = task("T1", waitingFor: "廠商", updatedAt: "2026-08-01 09:00:00")
+        let enteredWaiting = WorkEvent(timestamp: date("2026-08-01 09:00:00"), kind: .taskUpdated, title: "冷氣工程", detail: "等待 廠商", referenceID: "T1")
+        let followedUp = WorkEvent(timestamp: date("2026-08-08 10:00:00"), kind: .taskUpdated, title: "冷氣工程", detail: "已催辦（廠商）", referenceID: "T1")
+
+        let snapshot = service.snapshot(tasks: [waiting], inboxItems: [], events: [enteredWaiting, followedUp], now: now)
+        let item = snapshot.waitingItems.first
+        XCTAssertEqual(item?.followUpCount, 1)
+        XCTAssertEqual(item?.lastFollowUpAt, date("2026-08-08 10:00:00"))
+        XCTAssertEqual(item?.recommendedFollowUpAt, date("2026-08-10 10:00:00"))
+        XCTAssertEqual(snapshot.weeklyReview.followUpCount, 1)
+        XCTAssertEqual(snapshot.weeklyReview.waitingAverageDays, 9.0, accuracy: 0.001)
+    }
+
+    func testSnoozeSuppressesAlertsButKeepsWaitingVisible() {
         let now = date("2026-08-10 10:00:00")
         let waiting = task("waiting", waitingFor: "廠商", updatedAt: "2026-08-01 09:00:00")
         let hidden = service.snapshot(tasks: [waiting], inboxItems: [], events: [], snoozedUntil: ["waiting": date("2026-08-10 11:00:00")], now: now)
-        XCTAssertTrue(hidden.waitingItems.isEmpty)
+        XCTAssertEqual(hidden.waitingItems.map(\.task.taskId), ["waiting"])
+        XCTAssertEqual(hidden.waitingItems.first?.isAlertSuppressed, true)
+        XCTAssertTrue(hidden.followUpQueue.isEmpty)
         XCTAssertTrue(hidden.todayBrief.suggestions.isEmpty)
+
         let restored = service.snapshot(tasks: [waiting], inboxItems: [], events: [], snoozedUntil: ["waiting": date("2026-08-10 09:00:00")], now: now)
         XCTAssertEqual(restored.waitingItems.map(\.task.taskId), ["waiting"])
+        XCTAssertEqual(restored.waitingItems.first?.isAlertSuppressed, false)
+        XCTAssertEqual(restored.followUpQueue.map(\.task.taskId), ["waiting"])
     }
 
     func testDailyWrapClassifiesEventsAndHonorsTaipeiDateBoundary() {
@@ -92,6 +134,9 @@ final class DailyWorkServiceTests: XCTestCase {
         XCTAssertTrue(review.events.isEmpty)
         XCTAssertEqual(review.count(.completed), 0)
         XCTAssertTrue(review.achievements.isEmpty)
+        XCTAssertEqual(review.waitingAverageDays, 0)
+        XCTAssertEqual(review.waitingCriticalCount, 0)
+        XCTAssertEqual(review.followUpCount, 0)
     }
 
     func testWeeklyReviewStartsMondayInTaipeiAndExcludesPreviousSunday() {
@@ -124,8 +169,8 @@ final class DailyWorkServiceTests: XCTestCase {
         GASTaskDigest.Task(taskId: id, name: id, status: status, priority: priority, dueDate: dueDate, waitingFor: waitingFor, updatedAt: updatedAt)
     }
 
-    private func event(_ kind: WorkEventKind, _ title: String, _ timestamp: String, detail: String? = nil) -> WorkEvent {
-        WorkEvent(timestamp: date(timestamp), kind: kind, title: title, detail: detail)
+    private func event(_ kind: WorkEventKind, _ title: String, _ timestamp: String, detail: String? = nil, referenceID: String? = nil) -> WorkEvent {
+        WorkEvent(timestamp: date(timestamp), kind: kind, title: title, detail: detail, referenceID: referenceID)
     }
 
     private func date(_ value: String) -> Date {
