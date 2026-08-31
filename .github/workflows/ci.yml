@@ -47,6 +47,7 @@ jobs:
           bash -n tests/rc1_1_3_polish_contract.test.sh
           bash -n tests/rc1_2_1_context_briefing_contract.test.sh
           bash -n tests/rc1_3_waiting_intelligence_contract.test.sh
+          bash -n tests/rc1_4_waiting_ai_context_contract.test.sh
           bash -n tests/apple_permission_contract.test.sh
           bash -n tests/gemini_model_contract.test.sh
 
@@ -67,6 +68,9 @@ jobs:
 
       - name: Validate RC1.3 Waiting Intelligence contract
         run: bash tests/rc1_3_waiting_intelligence_contract.test.sh
+
+      - name: Validate RC1.4 Waiting AI Context contract
+        run: bash tests/rc1_4_waiting_ai_context_contract.test.sh
 
       - name: Validate Apple permission and signing contract
         run: bash tests/apple_permission_contract.test.sh
