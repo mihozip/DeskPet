@@ -17,6 +17,50 @@ MACOS_DIR="$CONTENTS/MacOS"
 RESOURCES_DIR="$CONTENTS/Resources"
 ZIP_PATH="$DIST_DIR/DeskPet-${VERSION}.zip"
 
+# Compatibility bridge for DeskPet 1.2.1.1–1.4.0.0 in-app updaters. Those
+# bundled updater scripts download main.zip and then call build_release.sh.
+# When that legacy path is detected, prefer the already-published release asset
+# instead of rebuilding Swift locally. If the asset is not available yet, fall
+# back to the historical source build path below.
+if [[ "${DESKPET_PROGRESS_PROTOCOL:-0}" == "1" && "${DESKPET_FORCE_SOURCE_BUILD:-0}" != "1" ]]; then
+    RELEASE_URL="https://github.com/mihozip/DeskPet/releases/download/v${VERSION}/DeskPet-${VERSION}.zip"
+    LEGACY_TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/deskpet-legacy-release.XXXXXX")"
+    LEGACY_ZIP="$LEGACY_TEMP_DIR/DeskPet-${VERSION}.zip"
+    LEGACY_EXTRACT="$LEGACY_TEMP_DIR/extracted"
+
+    echo "Legacy updater compatibility: trying published DeskPet ${VERSION} release asset…"
+    if /usr/bin/curl \
+        --fail --location --silent --show-error \
+        --connect-timeout 10 --max-time 180 \
+        --retry 3 --retry-delay 2 --retry-all-errors \
+        "$RELEASE_URL" \
+        --output "$LEGACY_ZIP"; then
+        mkdir -p "$LEGACY_EXTRACT"
+        /usr/bin/ditto -x -k "$LEGACY_ZIP" "$LEGACY_EXTRACT"
+        LEGACY_APP="$(find "$LEGACY_EXTRACT" -maxdepth 3 -type d -name DeskPet.app -print -quit)"
+
+        if [[ -n "$LEGACY_APP" && -x "$LEGACY_APP/Contents/MacOS/DeskPet" ]]; then
+            LEGACY_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$LEGACY_APP/Contents/Info.plist" 2>/dev/null || true)"
+            if [[ "$LEGACY_VERSION" == "$VERSION" ]] && /usr/bin/codesign --verify --deep --strict --verbose=2 "$LEGACY_APP"; then
+                rm -rf "$DIST_DIR"
+                mkdir -p "$DIST_DIR"
+                /usr/bin/ditto "$LEGACY_APP" "$APP_BUNDLE"
+                cp "$LEGACY_ZIP" "$ZIP_PATH"
+                /bin/rm -rf "$LEGACY_TEMP_DIR"
+                echo "Legacy updater compatibility: using published DeskPet ${VERSION} app; local Swift rebuild skipped."
+                printf 'Release App: %s\n' "$APP_BUNDLE"
+                printf 'Release ZIP: %s\n' "$ZIP_PATH"
+                exit 0
+            fi
+        fi
+
+        echo "WARN: published release asset failed validation; falling back to local source build" >&2
+    else
+        echo "WARN: published release asset is not available yet; falling back to local source build" >&2
+    fi
+    /bin/rm -rf "$LEGACY_TEMP_DIR"
+fi
+
 # A stable signing identity is important for macOS TCC permissions. Local builds
 # and the source-based updater reuse Developer ID / Apple Development when the
 # current Mac has one. CI without a configured identity still falls back to ad-hoc.
