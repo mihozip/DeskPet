@@ -5,7 +5,7 @@ import XCTest
 final class WorkContextEngineTests: XCTestCase {
     private let engine = WorkContextEngine()
 
-    func testUrgentTaskGoesNowAndWaitingTaskGoesLaterEvenWhenPriorityIsHigh() {
+    func testUrgentTaskGoesNowAndFreshWaitingTaskGoesLaterEvenWhenPriorityIsHigh() {
         let now = date("2026-08-18 10:00:00")
         let tasks = [
             task("urgent", name: "處理採購公告", priority: "高"),
@@ -23,6 +23,54 @@ final class WorkContextEngineTests: XCTestCase {
         XCTAssertEqual(snapshot.nowItems.compactMap { $0.task?.taskId }, ["urgent"])
         XCTAssertTrue(snapshot.laterItems.compactMap { $0.task?.taskId }.contains("waiting"))
         XCTAssertEqual(snapshot.headline, "現在最值得處理：處理採購公告")
+    }
+
+    func testAgedWaitingItemReturnsToNowWhenInterventionIsRequired() {
+        let now = date("2026-08-18 10:00:00")
+        let waiting = task("waiting", name: "等廠商估價", status: "等待他人", priority: "高", waitingFor: "廠商")
+        let enteredWaiting = WorkEvent(
+            timestamp: date("2026-08-10 09:00:00"),
+            kind: .taskUpdated,
+            title: "等廠商估價",
+            detail: "等待 廠商",
+            referenceID: "waiting"
+        )
+
+        let snapshot = engine.snapshot(
+            tasks: [waiting],
+            inboxItems: [],
+            workEvents: [enteredWaiting],
+            calendarEvents: [],
+            now: now
+        )
+
+        XCTAssertEqual(snapshot.nowItems.compactMap { $0.task?.taskId }, ["waiting"])
+        XCTAssertEqual(snapshot.headline, "等待案件需要介入：等廠商估價（已等 8 天）")
+    }
+
+    func testSnoozedWaitingItemStaysVisibleLaterButDoesNotInterruptNow() {
+        let now = date("2026-08-18 10:00:00")
+        let waiting = task("waiting", name: "等廠商估價", status: "等待他人", priority: "高", waitingFor: "廠商")
+        let enteredWaiting = WorkEvent(
+            timestamp: date("2026-08-10 09:00:00"),
+            kind: .taskUpdated,
+            title: "等廠商估價",
+            detail: "等待 廠商",
+            referenceID: "waiting"
+        )
+
+        let snapshot = engine.snapshot(
+            tasks: [waiting],
+            inboxItems: [],
+            workEvents: [enteredWaiting],
+            calendarEvents: [],
+            snoozedUntil: ["waiting": date("2026-08-18 11:00:00")],
+            now: now
+        )
+
+        XCTAssertFalse(snapshot.nowItems.compactMap { $0.task?.taskId }.contains("waiting"))
+        XCTAssertTrue(snapshot.laterItems.compactMap { $0.task?.taskId }.contains("waiting"))
+        XCTAssertEqual(snapshot.headline, "目前沒有急迫工作")
     }
 
     func testCurrentAndUpcomingCalendarEventsJoinContext() {
@@ -78,7 +126,7 @@ final class WorkContextEngineTests: XCTestCase {
         XCTAssertEqual(snapshot.headline, "11:00 有「行政會議」，先處理「確認採購公告」")
     }
 
-    func testSnoozedTaskIsExcludedFromEveryBucket() {
+    func testSnoozedNonWaitingTaskIsExcludedFromEveryBucket() {
         let now = date("2026-08-18 10:00:00")
         let task = task("snoozed", name: "稍後處理", priority: "高")
 
