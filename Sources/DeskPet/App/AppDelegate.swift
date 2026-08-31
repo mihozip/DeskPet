@@ -82,6 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let digestController = TaskDigestWindowController(
             monitor: ambientMonitor,
             gasConfiguration: gasConfiguration,
+            aiConfiguration: aiConfiguration,
             captureStore: store,
             workEventStore: workEventStore,
             snoozeStore: snoozeStore,
