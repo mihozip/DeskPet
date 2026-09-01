@@ -2,6 +2,82 @@
 
 All notable changes to DeskPet are documented here. Release Candidate interfaces and stored-data formats may still evolve between RC milestones.
 
+## [1.4.0.1] - 2026-08
+
+RC1.4.0.1 fixes the in-app updater so normal updates use the published GitHub Release asset instead of rebuilding DeskPet from source on the user's Mac.
+
+### Fixed
+- Normal in-app updates now download the published `DeskPet-<version>.zip` release asset instead of requiring a local Swift/Xcode build.
+- Downloaded apps are verified for bundle version, bundle identifier and code signature before the running DeskPet is asked to quit.
+- Replacement keeps a rollback backup and relaunches the previous app when recovery is possible.
+- Added a legacy compatibility bridge so RC1.2.1.1–RC1.4.0.0 source-based updaters can reuse the published release asset when they invoke the current `build_release.sh`.
+
+### Safety / Compatibility
+- All download, extraction and validation steps happen before app hand-off whenever possible.
+- Waiting Intelligence, Waiting AI Context, GAS task contracts and human-confirmation boundaries are unchanged.
+
+### Documentation / Validation
+- Added `docs/RC1_4_0_1_UPDATER_HOTFIX.md`.
+- Added updater contract coverage for release-asset download, version verification, hand-off ordering, rollback and legacy updater compatibility.
+
+## [1.4.0.0] - 2026-08
+
+Release Candidate 1.4 — Waiting Intelligence + AI Context.
+
+### Added
+- Added optional Gemini Waiting Context analysis on top of the deterministic RC1.3 Waiting Risk layer.
+- Added per-case AI analysis and a batch action for the three Waiting cases that currently deserve the most attention.
+- Added AI outputs for bounded `contextualRiskDelta`, blocking impact, dependency summary, supported risk signals, rationale, recommended action and confidence.
+- Added a combined recommendation that displays deterministic rule risk separately from the optional AI context adjustment.
+- Added dependency analysis against up to 12 other active task summaries so DeskPet can surface supported downstream blocking relationships without inventing workflow facts.
+- Added `WaitingAIContextStore`, `GeminiWaitingContextAnalyzer`, Waiting AI UI, unit tests and contract coverage.
+- Added `docs/RC1_4_WAITING_AI_CONTEXT.md`.
+
+### Behavior
+- Deterministic Waiting Risk remains the reproducible source of truth for `riskScore`, `riskLevel` and `interventionRequired`.
+- AI context is advisory only and its adjustment is clamped to `-15...+25` before it contributes to the combined recommendation.
+- Gemini analysis runs only when the user explicitly requests a single-case analysis or the top-three analysis; DeskPet does not automatically analyze every Waiting item in the background.
+- A high combined recommendation can open the existing follow-up confirmation flow, but never bypasses human review.
+
+### Privacy / Safety
+- AI Context cannot directly write GAS tasks and its service/store do not own a `GASTaskConnector` mutation path.
+- Waiting AI Context does not send local Calendar content to Gemini.
+- AI assessments are kept in memory for the current app session and invalidated when their task fingerprint becomes stale.
+- Calendar, Reminders and GAS formal writes remain confirmation-gated.
+
+### Validation
+- Added tests for bounded AI deltas, combined recommendation thresholds, task-fingerprint invalidation and the no-direct-GAS-mutation architecture contract.
+- Existing Waiting Intelligence, Gemini model, task mutation, Apple permission and desktop-interaction contracts remain active.
+
+## [1.3.0.0] - 2026-08
+
+Release Candidate 1.3 — Waiting Intelligence.
+
+### Added
+- Upgraded Waiting Radar from a waiting list into a deterministic Waiting Intelligence layer.
+- Added Waiting Risk scoring based on waiting age, task priority, deadline proximity/overdue state, missing waiting target, recommended follow-up timing and follow-up history.
+- Added four attention levels: `正常等待`, `建議注意`, `建議追蹤`, and `應立即介入`.
+- Added a Follow-up Queue to Today Work with a `需追蹤` count and up to three recommended follow-up cases.
+- Added derived waiting history fields including `followUpCount`, `lastFollowUpAt` and `recommendedFollowUpAt` from existing `WorkEvent` data.
+- Added Waiting analytics to Weekly Review: average waiting days, high-risk waiting count, cumulative follow-ups and an aged-waiting list with risk levels.
+- Added `docs/RC1_3_WAITING_INTELLIGENCE.md` and dedicated contract coverage.
+
+### Behavior
+- Normal Waiting tasks remain in `Later` and do not take over `Now` merely because they have high task priority.
+- Waiting cases that require intervention can return to `Now` and can be surfaced by Context Briefing.
+- Snooze for Waiting now means “pause proactive reminders” rather than “remove this case from the radar”. Waiting remains visible and its risk continues to be calculated.
+- Snoozed Waiting is suppressed from Follow-up Queue and intervention-driven `Now` until the snooze expires.
+
+### Architecture / Safety
+- Waiting Intelligence is a derived domain; GAS Task remains the formal task source of truth and `WorkEvent` remains the append-style activity history.
+- No second persistent task database or Dashboard schema is introduced.
+- Risk Score is an attention-ranking signal only and never automatically changes task status, deadline or other GAS fields.
+- Gemini is not required for RC1.3 risk calculation.
+- All GAS writes continue to require the existing human-confirmation flow.
+
+### Validation
+- Added tests for waiting risk, deadline-sensitive escalation, follow-up cadence, snooze semantics, intervention-driven Work Context and Weekly Waiting analytics.
+
 ## [1.2.1.1] - 2026-08
 
 RC1.2.1.1 fixes confirmed GAS task updates so the request payload matches the change preview exactly.
